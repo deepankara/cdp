@@ -20,7 +20,7 @@ use App\Filament\Imports\CustomersImporter;
 use Filament\Tables\Actions\ImportAction;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Facades\Session;
-
+use Filament\Tables\Actions\Action;
 
 class SegmentResource extends Resource
 {
@@ -69,6 +69,9 @@ class SegmentResource extends Resource
                     Session::put('segment_id',$record->id);
                 })
                 ->importer(CustomersImporter::class),
+
+                Action::make('analytics')->url(fn (Segment $record): string => route('filament.admin.resources.segments.emaildump', $record))
+                ->openUrlInNewTab()
                 // Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
@@ -82,6 +85,7 @@ class SegmentResource extends Resource
     {
         return [
             'index' => Pages\ManageSegments::route('/'),
+            'emaildump' => Pages\SegmentDumpEmail::route('/{record}/email-dump'),
         ];
     }
 }

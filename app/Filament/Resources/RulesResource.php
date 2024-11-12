@@ -23,6 +23,9 @@ use Illuminate\Support\Collection;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\DatePicker;
+use Coolsam\FilamentFlatpickr\Forms\Components\Flatpickr;
+use Coolsam\FilamentFlatpickr\Enums\FlatpickrTheme;
 
 
 class RulesResource extends Resource
@@ -37,6 +40,8 @@ class RulesResource extends Resource
     {
         return $form
             ->schema([
+
+                
                 Forms\Components\TextInput::make('name')
                     ->maxLength(255)
                     ->default(null),
@@ -74,16 +79,86 @@ class RulesResource extends Resource
                         })->native(false),
 
                         Select::make('options')
-                        ->options([
-                            'include' => 'Include',
-                            'exclude' => 'Exclude',
-                            'contains' => 'Contains',
-                            'not_contains' => 'Not Contains',
-                            'equals_to' => 'Equals to',
-                        ])->live(),
+                        ->options(function (Get $get) {
+                            if(str_contains($get('where'),"date")){
+                                $options = [
+                                    'include' => 'Include',
+                                    'exclude' => 'Exclude',
+                                    // 'contains' => 'Contains',
+                                    // 'not_contains' => 'Not Contains',
+                                    // 'equals_to' => 'Equals to',
+                                    'greater_than' => 'Greater Than',
+                                    'less_than' => 'Less Than'
+                                ];
+                            }else{
+                                $options = [
+                                    'include' => 'Include',
+                                    'exclude' => 'Exclude',
+                                    'contains' => 'Contains',
+                                    'not_contains' => 'Not Contains',
+                                    'equals_to' => 'Equals to',
+                                ];
+                            }
+                            return $options;
+                        })->live()->native(false),
 
-                        TextInput::make('value')->required()->hidden(fn (Get $get): bool => !($get('options') == 'contains' || $get('options') == 'not_contains' || $get('options') == 'equals_to')),
-                        TagsInput::make('values')->hidden(fn (Get $get): bool => !($get('options') == 'include' || $get('options') == 'exclude'))
+
+                        Flatpickr::make('date_include_exclude')->conjunction(',')
+                        ->multiple()
+                        ->dateFormat('Y-m-d')
+                        ->conjunction(',')
+                        ->hidden(function (Get $get) {
+                            if(str_contains($get('where'),"date")){
+                                if($get('options') == "include" || $get('options') == "exclude"){
+                                    return false;
+                                }else{
+                                    return true;
+                                }
+                            }else{
+                                return true;
+                            }
+                        })->label('Date'),
+
+                        Flatpickr::make('date')
+                        ->theme(FlatpickrTheme::AIRBNB) 
+                        ->dateFormat('d-m-Y')
+                        // ->multiple()
+                        ->hidden(function (Get $get) {
+                            if(str_contains($get('where'),"date")){
+                                if($get('options') == "include" || $get('options') == "exclude"){
+                                    return true;
+                                }else{
+                                    return false;
+                                }
+                            }else{
+                                return true;
+                            }
+                        })->label('Date'),
+
+                        
+
+                        TextInput::make('value')->required()
+                        ->hidden(function (Get $get) {
+                            if($get('options') == 'contains' || $get('options') == 'not_contains' || $get('options') == 'equals_to'){
+                                if(str_contains($get('where'),"date")){
+                                    return true;
+                                }
+                                return false;
+                            }else{
+                                return true;
+                            }
+                        }),
+                        TagsInput::make('values')
+                        ->hidden(function (Get $get) {
+                            if($get('options') == 'include' || $get('options') == 'exclude'){
+                                if(str_contains($get('where'),"date")){
+                                    return true;
+                                }
+                                return false;
+                            }else{
+                                return true;
+                            }
+                        }),
 
 
                     ])->columns(3)->columnSpanFull()

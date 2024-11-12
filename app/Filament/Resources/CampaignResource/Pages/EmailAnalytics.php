@@ -33,7 +33,6 @@ class EmailAnalytics extends Page implements HasTable
     {
         return [
             EmailAnalyticsWidget::class,
-            
         ];
     }
 

@@ -47,7 +47,7 @@ class TemplatesResource extends Resource
                                 'segment_id' => $get('segment_id')
                             ];
                             Session::put('segment_array',$array);
-                            return redirect("http://127.0.0.1:8000/admin/templates/create");
+                            return redirect(env('APP_URL')."/admin/templates/create");
                         }),
                     TinyEditor::make('html_content')
                     ->required()

@@ -5,20 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Campaign extends Model
+class RetargetCampaign extends Model
 {
     use HasFactory;
-    protected $table = "campaign";
+
+    protected $table = 'retarget_campaign';
 
     protected $fillable = [
-        'name',
-        'include_segment_id',
-        'rule_id',
-        'email_subject',
-        'email_from_name',
-        'template_id',
-        'schedule',
-        'retarget'
+        "name",
+        "campaign_id",
+        "retarget"
     ];
 
     protected $casts = [

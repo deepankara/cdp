@@ -20,15 +20,20 @@ use Illuminate\Support\Collection;
 use Filament\Forms\Get;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Tables\Actions\ReplicateAction;
 use Illuminate\Database\Eloquent\Model;
 
 class CampaignResource extends Resource
 {
     protected static ?string $model = Campaign::class;
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationGroup = 'Campaign Menu';
+
 
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -84,6 +89,30 @@ class CampaignResource extends Resource
                         ->required(), 
 
 
+                    ]),
+
+                    Section::make('Retargetting')
+                    ->schema([
+                        Repeater::make('retarget')
+                        ->schema([
+                            Select::make('when')
+                            ->options(
+                                ['opened'=>'Opened',
+                                 'clicked'=>'Clicked',
+                                ]
+                            )
+                            ->native(true)
+                            ->label("who didn't")
+                            ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
+
+                            DateTimePicker::make('schedule')
+                            ->label('Schedule')
+                            ->minDate(now()) // Restrict to today and future dates
+                            ->seconds(false)
+                            ->native(false)
+                            ->required(), 
+
+                        ])->label('Retarget')->columns(2)
                     ])
             ]);
     }
@@ -100,8 +129,12 @@ class CampaignResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Action::make('analytics')->url(fn (Campaign $record): string => route('filament.admin.resources.campaigns.analytics', $record))
-                ->openUrlInNewTab()
+                ActionGroup::make([
+                    Action::make('analytics')->url(fn (Campaign $record): string => route('filament.admin.resources.campaigns.analytics', $record))
+                    ->openUrlInNewTab()
+                ])->link()->label('Analytics')->hidden(function ($record) {
+                    return !$record->campaign_executed;
+                }),
                 // ReplicateAction::make()->excludeAttributes(['name','schedule']);
             ])
             ->bulkActions([
