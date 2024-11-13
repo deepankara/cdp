@@ -32,9 +32,12 @@ class CampaignResource extends Resource
 {
     protected static ?string $model = Campaign::class;
     protected static ?int $navigationSort = 1;
-    protected static ?string $navigationGroup = 'Campaign Menu';
+    protected static ?string $navigationGroup = 'Campaign';
 
-
+    public static function getNavigationLabel(): string
+    {
+        return 'Create Campaign';
+    }
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 

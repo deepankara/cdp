@@ -21,7 +21,7 @@ use Mohamedsabil83\FilamentFormsTinyeditor\Components\TinyEditor;
 class RetargetCampaignResource extends Resource
 {
     protected static ?string $model = RetargetCampaign::class;
-    protected static ?string $navigationGroup = 'Campaign Menu';
+    protected static ?string $navigationGroup = 'Campaign';
     protected static ?int $navigationSort = 2;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
