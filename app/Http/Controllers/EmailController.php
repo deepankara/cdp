@@ -131,6 +131,30 @@ class EmailController extends Controller
                                     // $query->{$conditionMethod}(DB::raw("json_unquote(json_extract(attributes, '$." . $value['where'] . "'))"), '<', $searchValue);
                                 }
                                 break;
+
+                            case 'range':
+                                $searchValue = $value['value'];
+                                if(str_contains($value['where'],"date")){
+                                    $searchValue = $value['date'];
+                                }
+                                if (in_array($value['where'], $directColumns)) {
+                                    $query->{$conditionMethod}($value['where'], '=', $searchValue);
+                                } else {
+                                    $date_range = $value['date_range'];
+                                    // echo "<pre>";print_r($date_range);exit;
+                                    $query->{$conditionMethod}(
+                                        DB::raw("STR_TO_DATE(json_unquote(json_extract(attributes, '$." . $value['where'] . "')), '%d-%m-%Y')"),
+                                        '>=',
+                                        DB::raw("STR_TO_DATE('" . $date_range[0] . "', '%d-%m-%Y')")
+                                    )->where(
+                                        DB::raw("STR_TO_DATE(json_unquote(json_extract(attributes, '$." . $value['where'] . "')), '%d-%m-%Y')"),
+                                        '<=',
+                                        DB::raw("STR_TO_DATE('" . $date_range[1] . "', '%d-%m-%Y')")
+                                    );
+                                    // $query->{$conditionMethod}(DB::raw("json_unquote(json_extract(attributes, '$." . $value['where'] . "'))"), '<', $searchValue);
+                                }
+                                break;
+
                         }
                     }
                 });
@@ -139,8 +163,6 @@ class EmailController extends Controller
         }else{
             $customers = $customers->get()->toArray();
         }
-        $customers[0]->email = "gilchristdsouza105@gmail.com";
-        $customers[1]->email = "gilchrist.dsouza@auxilo.com";
         $html_content = $campaign['html_content'];
         foreach($customers as $key => $value){
             $convertArray = (array) $value;

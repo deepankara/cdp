@@ -88,7 +88,8 @@ class RulesResource extends Resource
                                     // 'not_contains' => 'Not Contains',
                                     // 'equals_to' => 'Equals to',
                                     'greater_than' => 'Greater Than',
-                                    'less_than' => 'Less Than'
+                                    'less_than' => 'Less Than',
+                                    'range' => 'Range'
                                 ];
                             }else{
                                 $options = [
@@ -125,10 +126,27 @@ class RulesResource extends Resource
                         // ->multiple()
                         ->hidden(function (Get $get) {
                             if(str_contains($get('where'),"date")){
-                                if($get('options') == "include" || $get('options') == "exclude"){
+                                if($get('options') == "include" || $get('options') == "exclude" || $get('options') == "range"){
                                     return true;
                                 }else{
                                     return false;
+                                }
+                            }else{
+                                return true;
+                            }
+                        })->label('Date'),
+
+                        Flatpickr::make('date_range')
+                        ->theme(FlatpickrTheme::AIRBNB) 
+                        ->range()
+                        ->dateFormat('d-m-Y')
+                        // ->multiple()
+                        ->hidden(function (Get $get) {
+                            if(str_contains($get('where'),"date")){
+                                if($get('options') == "range"){
+                                    return false;
+                                }else{
+                                    return true;
                                 }
                             }else{
                                 return true;
