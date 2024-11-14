@@ -36,7 +36,7 @@ class CampaignResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return 'Create Campaign';
+        return 'Create';
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';

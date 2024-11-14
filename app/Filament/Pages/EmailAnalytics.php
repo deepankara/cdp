@@ -38,8 +38,13 @@ class EmailAnalytics extends Page implements HasTable,HasForms
     protected static string $view = 'filament.pages.email-analytics';
     // protected static bool $shouldRegisterNavigation = false;
 
-    protected static ?string $navigationGroup = 'Campaign Menu';
+    protected static ?string $navigationGroup = 'Analytics';
     protected static ?int $navigationSort = 3;
+
+    public static function getNavigationLabel(): string
+    {
+        return 'Email';
+    }
 
     protected function getHeaderActions(): array
     {
