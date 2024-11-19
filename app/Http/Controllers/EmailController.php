@@ -8,6 +8,8 @@ use Log;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Jenssegers\Agent\Agent;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 
 class EmailController extends Controller
 {
@@ -18,6 +20,14 @@ class EmailController extends Controller
     }
 
     public function sendEmail(Request $request){
+        // Redis::set('key', 'value');
+
+        Redis::hmset('user:3', [
+            'name' => 'John Gilcjrost',
+            'email' => 'john@example.com',
+        ]);
+        return Redis::hgetall('user:1');
+
         $campaign = DB::table('campaign')->select('campaign.include_segment_id',
         'campaign.rule_id','campaign.template_id','campaign.schedule',
         'templates.html_content',
@@ -163,6 +173,8 @@ class EmailController extends Controller
         }else{
             $customers = $customers->get()->toArray();
         }
+        echo "<pre>";print_r($customers);exit;
+
         $html_content = $campaign['html_content'];
         foreach($customers as $key => $value){
             $convertArray = (array) $value;
@@ -291,7 +303,7 @@ class EmailController extends Controller
             $insertData[$key]['email'] = $value['email'];
             $insertData[$key]['event'] = $value['event'];
             $insertData[$key]['sg_event_id'] = $value['sg_event_id'];
-            $insertData[$key]['sg_message_id'] = $value['sg_message_id'];
+        $insertData[$key]['sg_message_id'] = $value['sg_message_id'];
             $insertData[$key]['timestamp'] = $value['timestamp'];
             $insertData[$key]['indian_time'] = $this->convertToIST($value['timestamp']);
             $insertData[$key]['ip_address'] = (isset($value['ip']) && $value['ip'] != '') ? $value['ip'] : '';

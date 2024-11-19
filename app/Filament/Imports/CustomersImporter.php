@@ -53,7 +53,7 @@ class CustomersImporter extends Importer
         $data = $this->data;
       
         $dirtyOrClean = 'clean';
-        $checkCount = DB::table('email_dump')->where('email',$data['email'])->get()->toArray();
+        $checkCount = DB::table('email_dump')->where('segment_id',Session::get('segment_id'))->where('email',$data['email'])->get()->toArray();
         if(count($checkCount) < 1){
             $curl = curl_init();
             curl_setopt_array($curl, array(

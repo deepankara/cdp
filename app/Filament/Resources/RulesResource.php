@@ -26,6 +26,7 @@ use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\DatePicker;
 use Coolsam\FilamentFlatpickr\Forms\Components\Flatpickr;
 use Coolsam\FilamentFlatpickr\Enums\FlatpickrTheme;
+use Illuminate\Contracts\Support\Htmlable;
 
 
 class RulesResource extends Resource
@@ -34,7 +35,12 @@ class RulesResource extends Resource
     protected static ?int $navigationSort = 3;
 
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-funnel';
+
+    public static function getNavigationIcon(): string | Htmlable | null
+    {
+        return 'https://cdn-icons-png.flaticon.com/512/1160/1160523.png';
+    }
 
     public static function form(Form $form): Form
     {

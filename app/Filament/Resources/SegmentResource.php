@@ -21,6 +21,8 @@ use Filament\Tables\Actions\ImportAction;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Facades\Session;
 use Filament\Tables\Actions\Action;
+use Illuminate\Contracts\Support\Htmlable;
+
 
 class SegmentResource extends Resource
 {
@@ -28,7 +30,12 @@ class SegmentResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-user-group';
+
+    public static function getNavigationIcon(): string | Htmlable | null
+    {
+        return 'https://cdn-icons-png.flaticon.com/512/4577/4577216.png';
+    }
 
     public static function form(Form $form): Form
     {

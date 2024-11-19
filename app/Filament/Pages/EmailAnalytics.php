@@ -25,6 +25,7 @@ use Filament\Actions\Action;
 use Filament\Support\Exceptions\Halt;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Illuminate\Contracts\Support\Htmlable;
 
 class EmailAnalytics extends Page implements HasTable,HasForms
 {
@@ -32,9 +33,8 @@ class EmailAnalytics extends Page implements HasTable,HasForms
 
     public ?array $data = [];
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    protected static ?string $navigationIcon = 'heroicon-o-envelope';
     protected static ?string $slug = 'email-analytics';
-
     protected static string $view = 'filament.pages.email-analytics';
     // protected static bool $shouldRegisterNavigation = false;
 
@@ -44,6 +44,11 @@ class EmailAnalytics extends Page implements HasTable,HasForms
     public static function getNavigationLabel(): string
     {
         return 'Email';
+    }
+
+    public static function getNavigationIcon(): string | Htmlable | null
+    {
+        return 'https://cdn-icons-png.flaticon.com/512/7286/7286142.png';
     }
 
     protected function getHeaderActions(): array

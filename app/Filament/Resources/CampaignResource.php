@@ -27,6 +27,8 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Tables\Actions\ReplicateAction;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Contracts\Support\Htmlable;
+
 
 class CampaignResource extends Resource
 {
@@ -39,7 +41,13 @@ class CampaignResource extends Resource
         return 'Create';
     }
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    public static function getNavigationIcon(): string | Htmlable | null
+    {
+        return 'https://cdn-icons-png.flaticon.com/512/6104/6104532.png';
+    }
+    
+
+    protected static ?string $navigationIcon = 'heroicon-o-plus-circle';
 
     public static function form(Form $form): Form
     {

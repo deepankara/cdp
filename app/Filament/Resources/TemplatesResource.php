@@ -19,6 +19,8 @@ use App\Models\Segment;
 use Illuminate\Support\Facades\Session;
 use Filament\Forms\Components\ViewField;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\Support\Htmlable;
+
 
 
 class TemplatesResource extends Resource
@@ -28,7 +30,12 @@ class TemplatesResource extends Resource
     protected static ?int $navigationSort = 2;
 
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-document';
+
+    public static function getNavigationIcon(): string | Htmlable | null
+    {
+        return 'https://cdn-icons-png.flaticon.com/512/6863/6863985.png';
+    }
 
     public static function form(Form $form): Form
     {

@@ -17,6 +17,8 @@ use Filament\Forms\Get;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Session;
 use Mohamedsabil83\FilamentFormsTinyeditor\Components\TinyEditor;
+use Illuminate\Contracts\Support\Htmlable;
+
 
 class RetargetCampaignResource extends Resource
 {
@@ -24,11 +26,16 @@ class RetargetCampaignResource extends Resource
     protected static ?string $navigationGroup = 'Campaign';
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
 
     public static function getNavigationLabel(): string
     {
         return 'Retarget';
+    }
+
+    public static function getNavigationIcon(): string | Htmlable | null
+    {
+        return 'https://cdn-icons-png.flaticon.com/512/9623/9623697.png';
     }
 
     public static function form(Form $form): Form
