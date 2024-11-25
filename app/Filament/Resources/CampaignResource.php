@@ -102,29 +102,29 @@ class CampaignResource extends Resource
 
                     ]),
 
-                    Section::make('Retargetting')
-                    ->schema([
-                        Repeater::make('retarget')
-                        ->schema([
-                            Select::make('when')
-                            ->options(
-                                ['opened'=>'Opened',
-                                 'clicked'=>'Clicked',
-                                ]
-                            )
-                            ->native(true)
-                            ->label("who didn't")
-                            ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
+                    // Section::make('Retargetting')
+                    // ->schema([
+                    //     Repeater::make('retarget')
+                    //     ->schema([
+                    //         Select::make('when')
+                    //         ->options(
+                    //             ['opened'=>'Opened',
+                    //              'clicked'=>'Clicked',
+                    //             ]
+                    //         )
+                    //         ->native(true)
+                    //         ->label("who didn't")
+                    //         ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
 
-                            DateTimePicker::make('schedule')
-                            ->label('Schedule')
-                            ->minDate(now()) // Restrict to today and future dates
-                            ->seconds(false)
-                            ->native(false)
-                            ->required(), 
+                    //         DateTimePicker::make('schedule')
+                    //         ->label('Schedule')
+                    //         ->minDate(now()) // Restrict to today and future dates
+                    //         ->seconds(false)
+                    //         ->native(false)
+                    //         ->required(), 
 
-                        ])->label('Retarget')->columns(2)
-                    ])
+                    //     ])->label('Retarget')->columns(2)
+                    // ])
             ]);
     }
 
