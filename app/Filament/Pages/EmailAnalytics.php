@@ -56,7 +56,7 @@ class EmailAnalytics extends Page implements HasTable,HasForms
         return [
             Action::make('back')->action(function (Session $session) {
                 Session::forget('camp_id');
-                return redirect()->to(env('APP_URL').'admin/email-analytics/');
+                return redirect()->to(env('APP_URL').'/admin/email-analytics/');
             }),
         ];
     }
@@ -109,7 +109,7 @@ class EmailAnalytics extends Page implements HasTable,HasForms
             $data = $this->campaignForm->getState();
             if (isset($data['campaign_id']) && $data['campaign_id'] != '') {
                 Session::put('camp_id', $data['campaign_id']);
-                redirect()->to(env('APP_URL').'admin/email-analytics/');
+                redirect()->to(env('APP_URL').'/admin/email-analytics');
                 return;
             }
         } catch (Halt $exception) {
