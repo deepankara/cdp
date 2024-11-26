@@ -42,9 +42,13 @@ class RulesResource extends Resource
         return 'https://cdn-icons-png.flaticon.com/512/1160/1160523.png';
     }
 
+    protected static ?string $modelLabel = 'Audience Filter';
+    protected static ?string $pluralModelLabel = 'Audience Filter';
+
+
     public static function getNavigationLabel(): string
     {
-        return 'Audience Filtering';
+        return 'Audience Filter';
     }
 
     public static function form(Form $form): Form

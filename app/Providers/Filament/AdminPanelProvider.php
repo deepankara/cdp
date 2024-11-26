@@ -56,6 +56,7 @@ class AdminPanelProvider extends PanelProvider
             ->plugins([
                 \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make()
             ])
+            ->favicon("https://www.auxilo.com/assets/images/Auxilo-logo-horizontal.svg")
             ->databaseNotifications()
             ->authMiddleware([
                 Authenticate::class,

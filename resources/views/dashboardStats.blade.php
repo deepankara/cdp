@@ -59,7 +59,7 @@
         <div class="fi-wi-stats-overview-stat relative rounded-xl bg-white p-4 shadow-sm ring-1 ring-black-950/5 dark:bg-black-900 dark:ring-white/10">
             <div class="flex items-center justify-between">
                 <div>
-                    <span class="text-sm font-medium text-black-500 dark:text-black-400">Processed</span>
+                    <span class="text-sm font-medium text-black-500 dark:text-black-400">Sent</span>
                     <div class="text-3xl font-semibold tracking-tight text-black-950 dark:text-white">
                         {{isset($result['processed']) && $result['processed'] != '' ? $result['processed'] : 0}}
                     </div>
