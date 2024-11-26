@@ -64,6 +64,7 @@ class RulesResource extends Resource
                 Forms\Components\Select::make('segment_id')
                     ->options(Segment::all()->pluck('name','id'))->native(false)
                     ->live()
+                    ->label('Segment')
                     ->disabledOn('edit') 
                     ,
                 

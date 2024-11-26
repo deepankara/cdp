@@ -20,8 +20,7 @@ use Illuminate\Support\Facades\Session;
 use Filament\Forms\Components\ViewField;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Support\Htmlable;
-
-
+use Filament\Tables\Filters\SelectFilter;
 
 class TemplatesResource extends Resource
 {
@@ -47,6 +46,7 @@ class TemplatesResource extends Resource
                     Forms\Components\Select::make('segment_id')
                         ->options(Segment::all()->pluck('name','id'))->native(false)
                         ->live(onBlur: true)
+                        ->label('Segment')
                         ->disabledOn('edit') 
                         ->afterStateUpdated(function (Get $get, ?string $state) {
                             $array = [
@@ -72,9 +72,9 @@ class TemplatesResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('segment_id')
-                    ->numeric()
-                    ->sortable(),
+                // Tables\Columns\TextColumn::make('segment_id')
+                //     ->numeric()
+                //     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -85,7 +85,8 @@ class TemplatesResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                    SelectFilter::make('segment_id')
+                    ->options(Segment::all()->pluck('name','id'))->native(false)->label('Segment')
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

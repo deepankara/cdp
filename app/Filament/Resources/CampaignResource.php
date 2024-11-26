@@ -68,7 +68,7 @@ class CampaignResource extends Resource
                         ->pluck('name', 'id')
                     )
                     ->native(false)
-                    ->label('Rule'),
+                    ->label('Audience Filter'),
                 
                
 

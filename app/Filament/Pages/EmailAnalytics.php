@@ -26,6 +26,7 @@ use Filament\Support\Exceptions\Halt;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Illuminate\Contracts\Support\Htmlable;
+use Filament\Notifications\Notification;
 
 class EmailAnalytics extends Page implements HasTable,HasForms
 {
@@ -72,8 +73,18 @@ class EmailAnalytics extends Page implements HasTable,HasForms
                                             ->leftjoin('templates','templates.id','campaign.template_id')
                                             ->leftjoin('rules','rules.id','campaign.rule_id')
                                             ->get()->toArray();
-            $campaign = (array) current($campaign);
-            Session::put('email_analytics',$campaign);
+            
+            if(count($campaign) < 1){
+                Session::forget('camp_id');
+                Notification::make()
+                    ->title("Sorry Campaign Didn't Executed")
+                    ->success()
+                    ->send();
+                $this->campaignForm->fill();
+            }else{
+                $campaign = (array) current($campaign);
+                Session::put('email_analytics',$campaign);
+            }
         }else{
             $this->campaignForm->fill();
         }
@@ -124,6 +135,14 @@ class EmailAnalytics extends Page implements HasTable,HasForms
                 ->label('Check Analytics')
                 ->submit('save'),
         ];
+    }
+
+    public function textForm(Form $form): Form
+    {
+        return $form
+            ->schema([
+            
+            ]);
     }
 
     public function campaignForm(Form $form): Form
