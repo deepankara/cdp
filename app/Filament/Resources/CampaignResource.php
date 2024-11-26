@@ -78,10 +78,12 @@ class CampaignResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('email_subject')
                         ->maxLength(255)
-                        ->default(null),
+                        ->default(null)
+                        ->label('Subject'),
 
                         Forms\Components\TextInput::make('email_from_name')
                         ->maxLength(255)
+                        ->label('From Name')
                         ->default(null),
 
                         Forms\Components\Select::make('template_id')

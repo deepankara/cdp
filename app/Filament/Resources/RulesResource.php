@@ -42,6 +42,11 @@ class RulesResource extends Resource
         return 'https://cdn-icons-png.flaticon.com/512/1160/1160523.png';
     }
 
+    public static function getNavigationLabel(): string
+    {
+        return 'Audience Filtering';
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -193,15 +198,15 @@ class RulesResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('id')
-                    ->label('ID')
-                    ->numeric()
-                    ->sortable(),
+                // Tables\Columns\TextColumn::make('id')
+                //     ->label('ID')
+                //     ->numeric()
+                //     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('segment_id')
-                    ->numeric()
-                    ->sortable(),
+                // Tables\Columns\TextColumn::make('segment_id')
+                //     ->numeric()
+                //     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

@@ -95,7 +95,7 @@ class RetargetCampaignResource extends Resource
                     ->seconds(false)
                     ->native(false)
                     ->required(), 
-                ])->maxItems(2)->defaultItems(2)->addable(false)->columnSpanFull()->grid(2)->required()
+                ])->maxItems(2)->defaultItems(1)->addable(true)->columnSpanFull()->grid(1)->required()
             ]);
     }
 

@@ -56,18 +56,21 @@ class SegmentDumpEmail extends Page implements HasTable
                 ->icon(fn (string $state): string => match ($state) {
                     'clean' => 'heroicon-o-check-badge',
                     'dirty' => 'heroicon-o-x-mark',
+                    'error' => 'heroicon-o-x-mark',
                 })
                 ->color(fn (string $state): string => match ($state) {
                     'dirty' => 'danger',
+                    'error' => 'danger',
                     'clean' => 'success',
                 }),
-                TextColumn::make('reason')->searchable(),
+                // TextColumn::make('reason')->searchable(),
             ])
             ->filters([
                 SelectFilter::make('status')
                 ->options([
-                    'clean' => 'Clean',
-                    'dirty' => 'Dirty',
+                    'clean' => 'Valid',
+                    'error' => 'Error',
+                    'dirty' => 'Invalid',
                 ])->native(false)
             ])
             ;

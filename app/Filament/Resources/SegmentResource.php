@@ -46,7 +46,9 @@ class SegmentResource extends Resource
                 ->options([
                     '1' => 'Login',
                     '2' => 'Others',
-                ])
+                ]),
+                // TextInput::make('reporting_name')->required(),
+                // TextInput::make('reporting_email')->required(),
             ]);
     }
 
@@ -59,7 +61,7 @@ class SegmentResource extends Resource
                 ->options([
                     '1' => 'Login',
                     '2' => 'Others',
-                ])->disabled()
+                ])->disabled()->label('Category')
             ])
             ->filters([
                 //

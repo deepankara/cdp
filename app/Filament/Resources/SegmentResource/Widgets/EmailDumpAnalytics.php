@@ -20,8 +20,8 @@ class EmailDumpAnalytics extends BaseWidget
                     ->pluck('user_count', 'status')->toArray();
         return [
             Stat::make('Processed', array_sum($result)),
-            Stat::make('Clean', $result['clean']),
-            Stat::make('Dirty', $result['dirty']),
+            Stat::make('Valid', isset($result['clean']) ? $result['clean'] : 0),
+            Stat::make('Invalid', isset($result['dirty']) ? $result['dirty'] : 0),
         ];
     }
 }

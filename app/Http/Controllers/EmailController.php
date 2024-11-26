@@ -22,18 +22,14 @@ class EmailController extends Controller
     public function sendEmail(Request $request){
         // Redis::set('key', 'value');
 
-        Redis::hmset('user:3', [
-            'name' => 'John Gilcjrost',
-            'email' => 'john@example.com',
-        ]);
-        return Redis::hgetall('user:1');
-
+      
         $campaign = DB::table('campaign')->select('campaign.include_segment_id',
         'campaign.rule_id','campaign.template_id','campaign.schedule',
         'templates.html_content',
         'campaign.email_subject',
         'campaign.email_from_name','campaign.id as campaign_id')->leftjoin('templates','templates.id','campaign.template_id')->orderBy('campaign_id','desc')->get()->toArray();
         $campaign = (array) current($campaign);
+
 
         $customers = DB::table('customers')->where('segment_id',$campaign['include_segment_id']);
         if(isset($campaign['rule_id']) && $campaign['rule_id'] != '') {
@@ -173,7 +169,7 @@ class EmailController extends Controller
         }else{
             $customers = $customers->get()->toArray();
         }
-        echo "<pre>";print_r($customers);exit;
+        // echo "<pre>";print_r($customers);exit;
 
         $html_content = $campaign['html_content'];
         foreach($customers as $key => $value){
@@ -443,6 +439,8 @@ class EmailController extends Controller
             ->groupBy('ea.email') 
             ->get()
             ->toArray();
+        
+            echo "<pre>";print_r($deliveredButNotOpenedEmails);exit;
 
         $html_content = $retargetArray['html_content'];
         
