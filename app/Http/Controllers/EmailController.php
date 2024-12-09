@@ -46,6 +46,8 @@ class EmailController extends BaseController
             $html_content = $template['html_content'];
             $attributes = $requestData['template_attr'];
             $attributes = array_merge($requestData,$attributes);
+            $unsubscribeUrl = 'https://example.com/unsubscribe?email=' . urlencode($attributes['email']);
+            $attributes['unsubscribe'] = '<a href="' . $unsubscribeUrl . '">Unsubscribe</a>';
             $customerHtmlContent = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($attributes) {
                 $key = $matches[1]; 
                 return $attributes[$key] ?? $matches[0]; 
@@ -61,8 +63,7 @@ class EmailController extends BaseController
 
             $html_content = $template['sms'];
             $attributes = $requestData['template_attr'];
-            $unsubscribeUrl = 'https://example.com/unsubscribe?email=' . urlencode($attributes['email']);
-            $attributes['unsubscribe'] = '<a href="' . $unsubscribeUrl . '">Unsubscribe</a>';
+            
             $attributes = array_merge($requestData,$attributes);
             $customerHtmlContent = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($attributes) {
                 $key = $matches[1]; 
