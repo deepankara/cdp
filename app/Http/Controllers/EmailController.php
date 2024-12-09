@@ -6,13 +6,245 @@ use Illuminate\Http\Request;
 use DB;
 use Log;
 use Carbon\Carbon;
+use App\Http\Controllers\BaseController;
 use Illuminate\Support\Facades\Http;
 use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Cache;
+use Auth;
 use Illuminate\Support\Facades\Redis;
 
-class EmailController extends Controller
+class EmailController extends BaseController
 {
+    public function getToken(Request $request){
+        if(isset($request->header()['php-auth-user']) && $request->header()['php-auth-user'] != '' && isset($request->header()['php-auth-pw']) && $request->header()['php-auth-pw'] != ''){
+            $email = $request->header()['php-auth-user'];
+            $password = $request->header()['php-auth-pw'][0];
+            if(Auth::attempt(['email' => $email, 'password' => $password])) {
+                $user = Auth::user();
+                $tokenResult = $user->createToken('Personal Access Token');
+                $token = $tokenResult->token;
+                $token->expires_at = Carbon::now()->addWeeks(1);
+                $token->save();
+
+                $data = [
+                    'access_token' => $tokenResult->accessToken, // Acce    ss token value
+                    'token_type' => 'Bearer', // Token type (Bearer for OAuth2)
+                    'expires_at' => Carbon::parse($token->expires_at)->toDateTimeString() 
+                ];
+                return $this->sendResponse($data, 'Token Generated Successfully');
+            }else {
+                return $this->sendError('Unauthorised.', ['error'=>'Unauthorised'],401);
+            }
+        }
+    }
+
+    public function sendMessage(Request $request){
+        $requestData = $request->all();
+        if($requestData['channel'] == 'email'){
+            $template = DB::table('templates')->whereId($requestData['template_id'])->get()->toArray();
+            $template = (array) current($template);
+            $html_content = $template['html_content'];
+            $attributes = $requestData['template_attr'];
+            $attributes = array_merge($requestData,$attributes);
+            $customerHtmlContent = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($attributes) {
+                $key = $matches[1]; 
+                return $attributes[$key] ?? $matches[0]; 
+            }, $html_content);
+
+            $attributes['html_content'] = $customerHtmlContent;
+            $isSendMessage = $this->sendGridEmail($attributes);
+        }
+
+        if($requestData['channel'] == 'sms'){
+            $template = DB::table('sms_templates')->whereId($requestData['template_id'])->get()->toArray();
+            $template = (array) current($template);
+
+            $html_content = $template['sms'];
+            $attributes = $requestData['template_attr'];
+            $unsubscribeUrl = 'https://example.com/unsubscribe?email=' . urlencode($attributes['email']);
+            $attributes['unsubscribe'] = '<a href="' . $unsubscribeUrl . '">Unsubscribe</a>';
+            $attributes = array_merge($requestData,$attributes);
+            $customerHtmlContent = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($attributes) {
+                $key = $matches[1]; 
+                return $attributes[$key] ?? $matches[0]; 
+            }, $html_content);
+            
+            $isSendMessage = $this->sendSms($customerHtmlContent,$requestData['phone_no']);
+        }
+
+        if ($requestData['channel'] == 'whatsapp') {
+            $component = [];
+            if (isset($requestData['template_attr']['header_value']) && $requestData['template_attr']['header_value'] != '') {
+                $header = [];
+                $header['type'] = "HEADER";
+                $header['parameters'] = [];
+        
+                // Adding the header value to parameters
+                $header['parameters'][0] = [
+                    "type" => "text",
+                    "text" => $requestData['template_attr']['header_value']['value']
+                ];
+        
+                // Adding the header to components
+                $component[] = $header;
+            }
+
+            if (isset($requestData['template_attr']['body_value']) && !empty($requestData['template_attr']['body_value'])) {
+                $body = [];
+                $body['type'] = "BODY";
+                $body['parameters'] = [];
+        
+                // Loop through the body_value array and create parameter elements
+                foreach ($requestData['template_attr']['body_value'] as $index => $text) {
+                    $body['parameters'][] = [
+                        "type" => "text",
+                        "text" => $text
+                    ];
+                }
+                $component[] = $body;
+            }
+
+            $whatsapp = [];
+            $whatsapp['messaging_product'] = "whatsapp";
+            $whatsapp['to'] = $requestData['mobile_no'];
+            $whatsapp['type'] = "template";
+            $whatsapp['template'] = [];
+            $whatsapp['template']['name'] = $requestData['template_id'];
+            $whatsapp['template']['language'] = [
+                "code" => "en"
+            ];
+            $whatsapp['template']['components'] = $component;
+
+            $curl = curl_init();
+
+            curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://graph.facebook.com/v21.0/105029218931496/messages',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS =>json_encode($whatsapp),
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+                'Authorization: Bearer '.env('WHATSAPP_API_TOKEN')
+            ),
+            ));
+
+            $response = curl_exec($curl);
+        }
+        $isSendMessage = 200;
+        
+        $json = [];
+        $json['email'] = $requestData['email'];
+        $json['mobile_no'] = $requestData['mobile_no'];
+        $json['client_id'] = $request->user()->id;
+        $json['channel'] = $requestData['channel'];
+        $json['endpoint'] = $request->url();
+        $json['status'] = $isSendMessage;
+        $json['payload'] = json_encode($requestData);
+        $json['created_at'] = Carbon::now();
+        DB::table('api_logs')->insert($json);
+        return $isSendMessage;
+    }
+
+    public static function sendSms($sms,$phoneNumber){
+        $curl = curl_init();
+        $postFields = [
+            'userid' => env('SMS_USER_ID'),
+            'password' => env('SMS_PASSWORD'),
+            'send_to' => $phoneNumber,
+            'method' => 'SendMessage',
+            'msg' => $sms,
+            'msg_type' => 'TEXT',
+            'auth_scheme' => 'plain',
+            'v' => '1.1',
+            'format' => 'json'
+        ];
+     
+
+        curl_setopt_array($curl, [
+            CURLOPT_URL => 'https://enterprise.smsgupshup.com/GatewayAPI/rest',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => http_build_query($postFields), // Convert array to URL-encoded query string
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/x-www-form-urlencoded'
+            ],
+        ]);
+
+        $response = curl_exec($curl);
+        curl_close($curl);
+        echo "<pre>";print_r($response);exit;
+    }
+
+    public static function sendGridEmail($attributes){
+        $sendGridApiKey = env('SENDGRID_EMAIL_KEY');
+        $sendGridFromName = env('SENDGRID_FROM_EMAIL');
+
+        $data = [
+            'personalizations' => [
+                [
+                    'to' => [
+                        ['email' => $attributes['email']]
+                    ],
+                    'custom_args' => [
+                        'type' => "transactional",
+                        "template_id" => $attributes['template_id']
+                    ]
+
+                ]
+            ],
+            'from' => [
+                'email' => $sendGridFromName,
+                'name' => $attributes['email_from_name']
+            ],
+            'subject' => $attributes['email_subject'],
+            'content' => [
+                [
+                    'type' => 'text/html',
+                    'value' => $attributes['html_content']
+                ]
+            ],
+            'tracking_settings' => [
+                'click_tracking' => [
+                    'enable' => true,
+                    'enable_text' => true
+                ],
+                'open_tracking' => [
+                    'enable' => true
+                ]
+            ]
+        ];
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://api.sendgrid.com/v3/mail/send',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS =>json_encode($data),
+            CURLOPT_HTTPHEADER => array(
+                'Authorization: Bearer '.$sendGridApiKey.'',
+                'Content-Type: application/json'
+            ),
+        ));
+        $response = curl_exec($curl);
+        $http_status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        return $http_status_code;
+    }
+
     public function convertToIST($timestamp) {
         $dateTime = Carbon::createFromTimestamp($timestamp);
         $dateTime->setTimezone('Asia/Kolkata');
@@ -288,18 +520,38 @@ class EmailController extends Controller
         return true;
     }
 
+    public function whatsappWebook(Request $request){
+        $requestData = $request->all();
+        $statusData = $requestData['entry'][0]['changes'][0]['value']['statuses'][0];
+        Log::info($statusData);
+        $whatsapp = [];
+        $whatsapp['status']  = $statusData['status'];
+        $whatsapp['mobile_number']  = $statusData['recipient_id'];
+        $whatsapp['wa_id']  = $statusData['id'];
+        $whatsapp['time']  = $this->convertToIST($statusData['timestamp']);
+        $whatsapp['created_at']  = Carbon::now();
+        DB::table('whatsapp_analytics')->insert($whatsapp);
+    }
+
     public function emailWebhook(Request $request){
         Log::info('test');
         $requestData = $request->all();
         Log::info(json_encode($request->all()));
         $insertData = [];
+        $tableName = 'email_analytics';
         foreach($requestData as $key => $value){
-            $insertData[$key]['campaign_id'] = $value['campaign_id'];
-            $insertData[$key]['retarget_campaign_id'] = (isset($value['retargeting_campaign_id']) && $value['retargeting_campaign_id'] != '') ? $value['retargeting_campaign_id'] : '';
+            if(isset($value['type']) && $value['type'] == "transactional"){
+                $tableName = 'email_analytics_api';
+                $insertData[$key]['template_id'] = $value['template_id'];
+
+            }else{
+                $insertData[$key]['retarget_campaign_id'] = (isset($value['retargeting_campaign_id']) && $value['retargeting_campaign_id'] != '') ? $value['retargeting_campaign_id'] : '';
+                $insertData[$key]['campaign_id'] = $value['campaign_id'];
+            }
             $insertData[$key]['email'] = $value['email'];
             $insertData[$key]['event'] = $value['event'];
             $insertData[$key]['sg_event_id'] = $value['sg_event_id'];
-        $insertData[$key]['sg_message_id'] = $value['sg_message_id'];
+            $insertData[$key]['sg_message_id'] = $value['sg_message_id'];
             $insertData[$key]['timestamp'] = $value['timestamp'];
             $insertData[$key]['indian_time'] = $this->convertToIST($value['timestamp']);
             $insertData[$key]['ip_address'] = (isset($value['ip']) && $value['ip'] != '') ? $value['ip'] : '';
@@ -329,7 +581,7 @@ class EmailController extends Controller
                 }
             }
         }
-        DB::table('email_analytics')->insert($insertData);
+        DB::table($tableName)->insert($insertData);
     }
 
     public function emailRetargetting(Request $request){

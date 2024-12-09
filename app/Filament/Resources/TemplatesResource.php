@@ -21,6 +21,9 @@ use Filament\Forms\Components\ViewField;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Support\Htmlable;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Fieldset;
+use Filament\Forms\Components\Radio;
 
 class TemplatesResource extends Resource
 {
@@ -43,11 +46,12 @@ class TemplatesResource extends Resource
                     Forms\Components\TextInput::make('name')
                         ->maxLength(255)
                         ->default(null),
+
                     Forms\Components\Select::make('segment_id')
                         ->options(Segment::all()->pluck('name','id'))->native(false)
                         ->live(onBlur: true)
                         ->label('Segment')
-                        ->disabledOn('edit') 
+                        // ->disabledOn('edit') 
                         ->afterStateUpdated(function (Get $get, ?string $state) {
                             $array = [
                                 'name' => $get('name'),
@@ -56,6 +60,21 @@ class TemplatesResource extends Resource
                             Session::put('segment_array',$array);
                             return redirect(env('APP_URL')."/admin/templates/create");
                         }),
+                    
+                        // Radio::make('type')->options([
+                        //     'drag' => 'Drag & Drop',
+                        //     'html' => 'HTML',
+                        //     'fetch_url' => 'Fetch URL'
+                        // ])
+                        // ->descriptions([
+                        //     'drag' => 'Use our advanced drag & drop editor',
+                        //     'html' => 'Write your own HTML with our editor',
+                        //     'fetch_url' => 'Description text'
+                        // ])->inline(true),
+                    
+                    
+                        // ViewField::make('rating')
+                        //     ->view('dragDrop'),
                     TinyEditor::make('html_content')
                     ->required()
                     ->columnSpanFull(),

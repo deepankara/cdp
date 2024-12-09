@@ -24,6 +24,12 @@ return [
             'upload_directory' => null,
         ],
 
+        'whatsapp' => [
+            'plugins' => 'autoresize directionality emoticons link wordcount codesample code',
+            'toolbar' => 'emoticons | bold |italic | strikethrough | code',
+            'upload_directory' => null,
+        ],
+
         'template' => [
             'plugins' => 'autoresize template',
             'toolbar' => 'template',

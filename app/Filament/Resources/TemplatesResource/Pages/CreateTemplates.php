@@ -19,7 +19,7 @@ class CreateTemplates extends CreateRecord
     {
         $session = Session::get('segment_array');
         if(isset($session['segment_id']) && $session['segment_id'] != ''){
-            $customers = Customers::where('segment_id',$session['segment_id'])->first()->toArray();
+            $customers = Customers::where('segment_id',$session['segment_id'])->first();
             if(isset($customers['attributes']) && $customers['attributes'] != ''){
                 $attributes = array_keys(json_decode($customers['attributes'],true));
                 array_push($attributes,"name","email","contact_no",'unsubscribe');
