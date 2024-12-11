@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\SmsTemplateResource\Pages;
+use Illuminate\Contracts\Support\Htmlable;
 use App\Filament\Resources\SmsTemplateResource\RelationManagers;
 use App\Models\SmsTemplate;
 use Filament\Forms;
@@ -18,6 +19,13 @@ class SmsTemplateResource extends Resource
     protected static ?string $model = SmsTemplate::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationGroup = 'Templates';
+
+    public static function getNavigationIcon(): string | Htmlable | null
+    {
+        return 'https://cdn-icons-png.flaticon.com/512/1280/1280089.png';
+    }
+
 
     public static function form(Form $form): Form
     {

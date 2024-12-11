@@ -23,15 +23,23 @@ Route::get('/', function () {
     $users = DB::table('customers')->where('email','gilchristdsouza105@gmail.com')->get()->toArray();
     $users = (array) current($users);
 
+    $emailAnalytics = DB::table('email_analytics_api')
+                        ->select('event', DB::raw('COUNT(DISTINCT sg_message_id) as count'))
+                        ->where('email', 'gilchristdsouza105@gmail.com')
+                        ->groupBy('event')
+                        ->get()->toArray();
+
+    
+
+
     $mobileNumber = $users['contact_no'];
     $normalizedPhoneNumber = preg_replace('/\D/', '', $mobileNumber);
 
     $whatsapp = DB::table('whatsapp_analytics')->where('mobile_number',$normalizedPhoneNumber)
-    ->select('status', DB::raw('count(*) as status_count'))
-    ->groupBy('status')->get()->toArray();
+                                                ->select('status', DB::raw('count(*) as status_count'))
+                                                ->groupBy('status')->get()->toArray();
 
 
-    echo "<pre>";print_r($whatsapp);exit;
 
 
 

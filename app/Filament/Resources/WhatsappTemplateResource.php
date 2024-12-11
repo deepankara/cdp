@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\WhatsappTemplateResource\Pages;
 use App\Filament\Resources\WhatsappTemplateResource\RelationManagers;
+use Illuminate\Contracts\Support\Htmlable;
 use App\Models\WhatsappTemplate;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -35,6 +36,14 @@ class WhatsappTemplateResource extends Resource
     protected static ?string $model = WhatsappTemplate::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
+    protected static ?string $navigationGroup = 'Templates';
+
+    public static function getNavigationIcon(): string | Htmlable | null
+    {
+        return 'https://cdn-icons-png.flaticon.com/512/15713/15713434.png';
+    }
+
 
     public static function form(Form $form): Form
     {

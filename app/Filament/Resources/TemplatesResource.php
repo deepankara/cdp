@@ -31,6 +31,7 @@ class TemplatesResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    protected static ?string $navigationGroup = 'Templates';
 
     protected static ?string $navigationIcon = 'heroicon-o-document';
 

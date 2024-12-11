@@ -65,7 +65,6 @@ class EmailAnalytics extends Page implements HasTable,HasForms
     
 	public function mount(): void
 	{
-        // Session::forget('camp_id');
         if(Session::get('camp_id') != ''){
             $campaign = DB::table('campaign')->where('campaign.id',Session::get('camp_id'))
                                             ->select('campaign.*','segment.name as segment_name','rules.name as rule_name','templates.html_content','campaign.id as campaign_id')

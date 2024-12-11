@@ -40,6 +40,8 @@ class EmailController extends BaseController
 
     public function sendMessage(Request $request){
         $requestData = $request->all();
+        $json = [];
+
         if($requestData['channel'] == 'email'){
             $template = DB::table('templates')->whereId($requestData['template_id'])->get()->toArray();
             $template = (array) current($template);
@@ -70,7 +72,7 @@ class EmailController extends BaseController
                 return $attributes[$key] ?? $matches[0]; 
             }, $html_content);
             
-            $isSendMessage = $this->sendSms($customerHtmlContent,$requestData['phone_no']);
+            $isSendMessage = $this->sendSms($customerHtmlContent,$requestData['mobile_no'],$requestData['template_id']);
         }
 
         if ($requestData['channel'] == 'whatsapp') {
@@ -135,10 +137,16 @@ class EmailController extends BaseController
             ));
 
             $response = curl_exec($curl);
+            curl_close($curl);
+            $response = json_decode($response,true);
+            if(isset($response['messages'][0]['id']) && $response['messages'][0]['id'] != ''){
+                $json['wa_id'] = $response['messages'][0]['id'];
+                $json['template'] = $requestData['template_id'];
+            }
+
         }
         $isSendMessage = 200;
         
-        $json = [];
         $json['email'] = $requestData['email'];
         $json['mobile_no'] = $requestData['mobile_no'];
         $json['client_id'] = $request->user()->id;
@@ -151,23 +159,16 @@ class EmailController extends BaseController
         return $isSendMessage;
     }
 
-    public static function sendSms($sms,$phoneNumber){
+    public static function sendSms($sms,$phoneNumber,$templateId){
         $curl = curl_init();
-        $postFields = [
-            'userid' => env('SMS_USER_ID'),
-            'password' => env('SMS_PASSWORD'),
-            'send_to' => $phoneNumber,
-            'method' => 'SendMessage',
-            'msg' => $sms,
-            'msg_type' => 'TEXT',
-            'auth_scheme' => 'plain',
-            'v' => '1.1',
-            'format' => 'json'
+        $json = [
+            "phone" => $phoneNumber,
+            "message"=>$sms
         ];
-     
+        $json = json_encode($json);
 
-        curl_setopt_array($curl, [
-            CURLOPT_URL => 'https://enterprise.smsgupshup.com/GatewayAPI/rest',
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://wsnpp7trhj.execute-api.ap-south-1.amazonaws.com/dev/sendmessage',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -175,14 +176,57 @@ class EmailController extends BaseController
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => http_build_query($postFields), // Convert array to URL-encoded query string
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/x-www-form-urlencoded'
-            ],
-        ]);
-
+            CURLOPT_POSTFIELDS =>$json,
+            CURLOPT_HTTPHEADER => array(
+              'Content-Type: application/json'
+            ),
+          ));
+          
         $response = curl_exec($curl);
+        $response = json_decode($response,true);
+        if(isset($response['status']) && $response['status']){
+            $smsAnalytics = [];
+            $smsAnalytics['template_id'] = $templateId;
+            $smsAnalytics['phone'] = $phoneNumber;
+            $smsAnalytics['sms'] = $sms;
+            $smsAnalytics['created_at'] = Carbon::now();
+            DB::table('sms_analytics')->insert($smsAnalytics);
+        }   
+        return true;
+          
+
+        // $curl = curl_init();
+        // $postFields = [
+        //     'userid' => env('SMS_USER_ID'),
+        //     'password' => env('SMS_PASSWORD'),
+        //     'send_to' => $phoneNumber,
+        //     'method' => 'SendMessage',
+        //     'msg' => $sms,
+        //     'msg_type' => 'TEXT',
+        //     'auth_scheme' => 'plain',
+        //     'v' => '1.1',
+        //     'format' => 'json'
+        // ];
+     
+
+        // curl_setopt_array($curl, [
+        //     CURLOPT_URL => 'https://enterprise.smsgupshup.com/GatewayAPI/rest',
+        //     CURLOPT_RETURNTRANSFER => true,
+        //     CURLOPT_ENCODING => '',
+        //     CURLOPT_MAXREDIRS => 10,
+        //     CURLOPT_TIMEOUT => 0,
+        //     CURLOPT_FOLLOWLOCATION => true,
+        //     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        //     CURLOPT_CUSTOMREQUEST => 'POST',
+        //     CURLOPT_POSTFIELDS => http_build_query($postFields), // Convert array to URL-encoded query string
+        //     CURLOPT_HTTPHEADER => [
+        //         'Content-Type: application/x-www-form-urlencoded'
+        //     ],
+        // ]);
+
+        // $response = curl_exec($curl);
         curl_close($curl);
+        Log::info($response);
         echo "<pre>";print_r($response);exit;
     }
 
@@ -242,6 +286,7 @@ class EmailController extends BaseController
             ),
         ));
         $response = curl_exec($curl);
+        $error_msg = curl_error($curl);
         $http_status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         return $http_status_code;
     }
