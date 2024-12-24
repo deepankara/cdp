@@ -30,6 +30,7 @@ use Filament\Forms\Components\Repeater;
 use Illuminate\Support\Arr;
 use TangoDevIt\FilamentEmojiPicker\EmojiPickerAction;
 use Filament\Forms\Components\ViewField;
+use Filament\Forms\Components\FileUpload;
 
 class WhatsappTemplateResource extends Resource
 {
@@ -53,6 +54,7 @@ class WhatsappTemplateResource extends Resource
                     ->maxLength(255)
                     ->default(null)
                     ->extraAttributes(['id' => 'name'])
+                    ->unique(ignoreRecord: true)
                     ->helperText('Only lowercase letters, numbers, and underscores are allowed.'),
 
                 Select::make('language')
@@ -66,8 +68,24 @@ class WhatsappTemplateResource extends Resource
                         'AUTHENTICATION' => 'AUTHENTICATION',
                         'MARKETING' => 'MARKETING',
                         'UTILITY' => 'UTILITY',
-                    ])->label('Select Category')->required()->native(false),
+                    ])->label('Select Category')->required()->live()->native(false),
 
+                Select::make('utility_type')
+                    ->options([
+                        'NONE' => 'NONE',
+                        'PAYMENT' => 'PAYMENT',
+                    ])->label('Select Category')
+                    ->required()->native(false)
+                    ->live()
+                    ->hidden(function (Get $get) {
+                        if($get('category') == "UTILITY"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    }),
+
+                
                 Section::make('Content')
                     ->description('Fill in the header, body and footer sections of your template.')
                     ->schema([
@@ -76,7 +94,36 @@ class WhatsappTemplateResource extends Resource
                             Select::make('header_type')
                             ->options([
                                 'TEXT' => 'TEXT',
+                                'IMAGE' => 'IMAGE',
+                                'VIDEO' => 'VIDEO',
+                                'DOCUMENT' => 'DOCUMENT',
                             ])->label('Type')->native(false)->columns(2)->live(),
+
+                            FileUpload::make('attachment')
+                                ->disk('local')
+                                ->columnSpanFull()
+                                ->directory('whatsapp_template')
+                                ->preserveFilenames()
+                                ->image()
+                                ->acceptedFileTypes(['image/jpeg','image/png'])
+                                ->maxSize(5000)
+                                ->hidden(fn (Get $get) => $get('header_type') !== 'IMAGE'),
+
+                            FileUpload::make('document')
+                                 ->disk('local')
+                                ->columnSpanFull()
+                                ->directory('whatsapp_template')
+                                ->preserveFilenames()
+                                ->openable()
+                                ->hidden(function (Get $get) {
+                                    if($get('header_type') == "DOCUMENT" || $get('header_type') == "VIDEO"){
+                                        return false;
+                                    }else{
+                                        return true;
+                                    }
+                                }),
+                                // ->hidden(fn (Get $get) => $get('header_type') !== 'DOCUMENT'),
+                                // ->acceptedFileTypes(['application/pdf']),
                                 
                             TextInput::make('header_name')
                                 ->maxLength(255)
@@ -181,12 +228,21 @@ class WhatsappTemplateResource extends Resource
         Repeater::make('buttons')
             ->schema([
                 Select::make('option')
-                    ->options([
-                        'QUICK_REPLY' => 'Quick Reply',
-                        'URL' => 'Visit Website',
-                        'PHONE_NUMBER' => 'Call Phone Number',
-                        'COPY_OFFER_CODE' => 'Copy Offer Code',
-                    ])
+                    ->options(function (Get $get) {
+                        if($get('../../category') == "UTILITY" &&  $get('../../utility_type') == "PAYMENT"){
+                            $options = [
+                                'ORDER_DETAILS' => "Order Details"
+                            ];
+                        }else{
+                            $options = [
+                                'QUICK_REPLY' => 'Quick Reply',
+                                'URL' => 'Visit Website',
+                                'PHONE_NUMBER' => 'Call Phone Number',
+                                'COPY_CODE' => 'Copy Offer Code',
+                            ];
+                        }
+                        return $options;
+                    })
                     ->live()
                     ->disableOptionWhen(function (string $value, Get $get) {
                         // Get all selected buttons
@@ -207,9 +263,9 @@ class WhatsappTemplateResource extends Resource
                             return ($selectedCounts['PHONE_NUMBER'] ?? 0) >= 1;
                         }
 
-                        // Disable 'COPY_OFFER_CODE' if selected more than 1 time
-                        if ($value === 'COPY_OFFER_CODE') {
-                            return ($selectedCounts['COPY_OFFER_CODE'] ?? 0) >= 1;
+                        // Disable 'COPY_CODE' if selected more than 1 time
+                        if ($value === 'COPY_CODE') {
+                            return ($selectedCounts['COPY_CODE'] ?? 0) >= 1;
                         }
 
                         // No disabling for other options
@@ -218,10 +274,18 @@ class WhatsappTemplateResource extends Resource
                     ->label('Button Option')
                     ->required(),
 
-                    TextInput::make('button_text'),
-                    Select::make('url_type')->options([
+                    TextInput::make('button_text')->hidden(function (Get $get) {
+                        if($get('option') == "COPY_CODE"){
+                            return true;
+                        }else{
+                            return false;
+                        }
+                    }),
+                    Select::make('url_type')
+                    ->live()
+                    ->options([
                         'static' => 'Static',
-                        // 'dynamic' => 'Dynamic'
+                        'dynamic' => 'Dynamic'
                     ])->hidden(function (Get $get) {
                         if($get('option') == "URL"){
                             return false;
@@ -230,6 +294,8 @@ class WhatsappTemplateResource extends Resource
                         }
                     }),
 
+                  
+
                     TextInput::make('url')->url()->hidden(function (Get $get) {
                         if($get('option') == "URL"){
                             return false;
@@ -237,6 +303,14 @@ class WhatsappTemplateResource extends Resource
                             return true;
                         }
                     }),
+
+                    TextInput::make('url_example')->url()->hidden(function (Get $get) {
+                        if($get('url_type') == "dynamic"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    })->helperText('Please Provide a containing varibale.As it may lead to rejectetion of the template'),
 
 
                     TextInput::make('phone_number')->hidden(function (Get $get) {
@@ -248,7 +322,7 @@ class WhatsappTemplateResource extends Resource
                     }),
 
                     TextInput::make('offer_code')->hidden(function (Get $get) {
-                        if($get('option') == "COPY_OFFER_CODE"){
+                        if($get('option') == "COPY_CODE"){
                             return false;
                         }else{
                             return true;

@@ -41,7 +41,6 @@ class EmailController extends BaseController
     public function sendMessage(Request $request){
         $requestData = $request->all();
         $json = [];
-
         if($requestData['channel'] == 'email'){
             $template = DB::table('templates')->whereId($requestData['template_id'])->get()->toArray();
             $template = (array) current($template);
@@ -77,18 +76,26 @@ class EmailController extends BaseController
 
         if ($requestData['channel'] == 'whatsapp') {
             $component = [];
-            if (isset($requestData['template_attr']['header_value']) && $requestData['template_attr']['header_value'] != '') {
+            $template = DB::table('whatsapp_templates')->where("name",$requestData['template_id'])->get()->toArray();
+            $template = (array) current($template);
+            if (isset($template['header_type']) && $template['header_type'] != 'NONE') {
                 $header = [];
                 $header['type'] = "HEADER";
                 $header['parameters'] = [];
-        
-                // Adding the header value to parameters
-                $header['parameters'][0] = [
-                    "type" => "text",
-                    "text" => $requestData['template_attr']['header_value']['value']
-                ];
-        
-                // Adding the header to components
+
+                if($template['header_type'] == "VIDEO"){
+                    $header['parameters'][0] = [
+                        "type" => "video",
+                        "video" => ['link'=>$requestData['template_attr']['header_value']['value']]
+                    ];
+                }
+
+                if($template['header_type'] == "TEXT"){
+                    $header['parameters'][0] = [
+                        "type" => "text",
+                        "text" => $requestData['template_attr']['header_value']['value']
+                    ];
+                }
                 $component[] = $header;
             }
 
@@ -107,6 +114,36 @@ class EmailController extends BaseController
                 $component[] = $body;
             }
 
+            if(isset($requestData['template_attr']['button']) && $requestData['template_attr']['button'] != ''){
+                $buttonJson = json_decode($template['buttons'],true);
+                foreach($buttonJson as $key => $value){
+                    if($value['option'] == "COPY_CODE"){
+                        $button = [];
+                        $button['type'] = "button";
+                        $button['sub_type'] = strtolower($value['option']);
+                        $button['index'] = $key;
+                        // $button['parameters'][] = [];
+                        $button['parameters']['type'] = "coupon_code";
+                        $button['parameters']['coupon_code'] = $requestData['template_attr']['button']['button_offer_code'];
+                        $button['parameters'] = array($button['parameters']);
+                        $component[] = $button;
+                    }
+
+                    if($value['option'] == "URL"){
+                        $button = [];
+                        $button['type'] = "button";
+                        $button['sub_type'] = strtolower($value['option']);
+                        $button['index'] = $key;
+                        // $button['parameters'][] = [];
+                        $button['parameters']['type'] = "text";
+                        $button['parameters']['text'] = $requestData['template_attr']['button']['button_dynamic_url'];
+                        $button['parameters'] = array($button['parameters']);
+                        $component[] = $button;
+                    }
+                }
+            }
+            // echo "<pre>";print_r($component);exit;
+            
             $whatsapp = [];
             $whatsapp['messaging_product'] = "whatsapp";
             $whatsapp['to'] = $requestData['mobile_no'];
@@ -114,9 +151,10 @@ class EmailController extends BaseController
             $whatsapp['template'] = [];
             $whatsapp['template']['name'] = $requestData['template_id'];
             $whatsapp['template']['language'] = [
-                "code" => "en"
+                "code" => "en_us"
             ];
             $whatsapp['template']['components'] = $component;
+            // echo "<pre>";print_r(json_encode($whatsapp));exit;
 
             $curl = curl_init();
 
@@ -139,6 +177,8 @@ class EmailController extends BaseController
             $response = curl_exec($curl);
             curl_close($curl);
             $response = json_decode($response,true);
+            echo "<pre>";print_r($response);exit;
+
             if(isset($response['messages'][0]['id']) && $response['messages'][0]['id'] != ''){
                 $json['wa_id'] = $response['messages'][0]['id'];
                 $json['template'] = $requestData['template_id'];
@@ -568,8 +608,8 @@ class EmailController extends BaseController
 
     public function whatsappWebook(Request $request){
         $requestData = $request->all();
+        Log::info($requestData);exit;
         $statusData = $requestData['entry'][0]['changes'][0]['value']['statuses'][0];
-        Log::info($statusData);
         $whatsapp = [];
         $whatsapp['status']  = $statusData['status'];
         $whatsapp['mobile_number']  = $statusData['recipient_id'];

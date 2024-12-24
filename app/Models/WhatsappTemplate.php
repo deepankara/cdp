@@ -20,7 +20,11 @@ class WhatsappTemplate extends Model
         "header_variables_sample",
         "body_variables_sample",
         "html_content",
+        "attachment",
+        "document",
         "content",
+        "media_id",
+        "upload_id",
         "buttons",
     ];
 

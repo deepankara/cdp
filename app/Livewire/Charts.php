@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Filament\Widgets\ChartWidget;
 use Carbon\Carbon;
 use DB;
+use Filament\Support\RawJs;
 
 class Charts extends ChartWidget
 {
@@ -59,19 +60,20 @@ class Charts extends ChartWidget
         $labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];// Weeks as labels
 
         $datasets = collect($events)->map(fn($event) => [
+            'axis'=>"x",
             'label' => ucfirst($event), // Capitalize event names
             'data' => $weeklyData->map(fn($week, $key) => [
-        'week' => substr($key, 0, 4) . '-' . substr($key, 4), // Format week as "2024-44"
-        'value' => $week[$event],
-    ])->pluck('value')->toArray(),
-            'backgroundColor' => match ($event) {
-                'processed' => '#FFCC00',
-                'delivered' => '#4CAF50',
-                'open' => '#2196F3',
-                'click' => '#FFC107',
-                default => '#CCCCCC',
-            },
-        ])->values()->toArray();
+            'week' => substr($key, 0, 4) . '-' . substr($key, 4), // Format week as "2024-44"
+            'value' => $week[$event],
+        ])->pluck('value')->toArray(),
+                'backgroundColor' => match ($event) {
+                    'processed' => '#FFCC00',
+                    'delivered' => '#4CAF50',
+                    'open' => '#2196F3',
+                    'click' => '#FFC107',
+                    default => '#CCCCCC',
+                },
+            ])->values()->toArray();
 
         return [
             'datasets' => $datasets,
@@ -82,5 +84,14 @@ class Charts extends ChartWidget
     protected function getType(): string
     {
         return 'bar';
+    }
+
+    protected function getOptions(): RawJs
+    {
+        return RawJs::make(<<<JS
+            {
+                indexAxis: 'y',
+            }
+        JS);
     }
 }

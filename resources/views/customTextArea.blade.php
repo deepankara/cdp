@@ -4,7 +4,7 @@
     const input = document.querySelector('#name');
     input.addEventListener('input', function(event) {
         const value = event.target.value;
-        const newValue = value.replace(/[^a-z0-9_]/g, '');
+        const newValue = value.replace(/[^a-z0-9_ ]/g, '').replace(/ /g, '_');
         event.target.value = newValue;
     });
 
@@ -23,20 +23,21 @@
                 // Determine the formatting action
                 switch (action.dataset.action) {
                     case 'italic':
-                        formattedText = `*${selectedText}*`;
+                        formattedText = `_${selectedText}_`; // Single underscore for italic
                         break;
                     case 'bold':
-                        formattedText = `**${selectedText}**`;
+                        formattedText = `*${selectedText}*`; // Single asterisk for bold
                         break;
                     case 'strike':
-                        formattedText = `~~${selectedText}~~`;
+                        formattedText = `~${selectedText}~`; // Single tilde for strikethrough
                         break;
                     case 'monospace':
-                        formattedText = `\`${selectedText}\``;
+                        formattedText = `\`${selectedText}\``; // Single backticks for monospace
                         break;
                     default:
                         formattedText = selectedText;
                 }
+
 
                 // Replace the selected text with formatted text
                 textarea.value = 

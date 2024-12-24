@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CampaignResource\Pages;
 use App\Filament\Resources\CampaignResource\RelationManagers;
 use App\Models\Campaign;
+use App\Models\WhatsappTemplate;
 use Filament\Tables\Actions\Action;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -18,9 +19,11 @@ use App\Models\Templates;
 use App\Models\Rules;
 use Illuminate\Support\Collection;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Tables\Actions\ActionGroup;
+use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\Repeater;
@@ -28,6 +31,7 @@ use Filament\Forms\Components\Select;
 use Filament\Tables\Actions\ReplicateAction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Contracts\Support\Htmlable;
+use App\Models\Customers;
 
 
 class CampaignResource extends Resource
@@ -57,9 +61,70 @@ class CampaignResource extends Resource
                     ->maxLength(255)
                     ->default(null),
                 
+                Forms\Components\Select::make('channel')
+                    ->options(
+                        [
+                            "Email" => "Email",
+                            "Whatsapp" => "Whatsapp",
+                            "SMS" => "SMS"
+                        ]
+                    )->native(false)
+                    ->label('Channel')
+                    ->live()
+                    ->required(),
+
+                Forms\Components\Select::make('whatsapp_template')
+                    ->options(WhatsappTemplate::all()->pluck('name','id'))->native(false)
+                    ->label('Whatsapp Tempalte')
+                    ->live()
+                    ->hidden(function (Get $get){
+                        if($get('channel') == "Whatsapp"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    })
+                    ->afterStateUpdated(function (?string $state,Set $set){
+                        $whatsapp = WhatsappTemplate::whereId($state)->get()->toArray();
+                        $whatsapp = (array) current($whatsapp);
+                        $array = [];
+
+                        if($whatsapp['header_type'] != 'NONE'){
+                            if($whatsapp['header_type'] == "TEXT"){
+                                if(str_contains($whatsapp['header_name'],"{{")){
+                                    $header = [];
+                                    $header["name"] = "{{1}}";
+                                    $header["type"] = "header";
+                                    array_push($array, $header);
+                                }
+                            }else{
+                                $header = [];
+                                $header["name"] = "{{1}}";
+                                $header["type"] = "header";
+                                array_push($array, $header);
+                            }
+                        }
+
+
+                        if(isset($whatsapp['html_content']) && $whatsapp['html_content'] != ''){
+                            $count = substr_count($whatsapp['html_content'], "{{");
+                            $body = [];
+                            for($i=1; $i <= $count; $i++){ 
+                                $body = [];
+                                $body["name"] = "{{$i}}";
+                                $body["type"] = "body";
+                                array_push($array, $body);
+                            }
+                        }
+                        $set('variables',$array);
+                    })
+                    ->required(),
+                
                 Forms\Components\Select::make('include_segment_id')
                     ->options(Segment::all()->pluck('name','id'))->native(false)
                     ->label('Segment')
+                    
+                    ->live()
                     ->required(),
                 
                 Forms\Components\Select::make('rule_id')
@@ -68,8 +133,64 @@ class CampaignResource extends Resource
                         ->pluck('name', 'id')
                     )
                     ->native(false)
+                    ->live()
                     ->label('Audience Filter'),
+
                 
+                Section::make('Whatsapp Details')
+                    ->schema([
+                        Repeater::make('variables')
+                            ->schema([
+                                TextInput::make('name')->required()->readonly(),
+                                TextInput::make('type')->required()->readonly(),
+                                Select::make('value')
+                                ->options(function (Get $get){
+                                    if($get('../../include_segment_id') == ''){
+                                        return [];
+                                    }
+                                    $customers = Customers::where('segment_id',$get('../../include_segment_id'))->get()->toArray();
+                                    $customers = (array) current($customers);
+                                    
+                                    $attributes = array_keys(json_decode($customers['attributes'],true));
+                                    array_push($attributes,"name","email","contact_no");
+                                    $data = [];
+                                    foreach($attributes as $key => $value){
+                                        $data[$value] = $value;
+                                    }
+                                    return $data;
+                                }),
+                            ])
+                            ->required()
+                            ->columns(3)
+
+                        // Forms\Components\Select::make('body_variable')
+                        //     ->multiple()
+                        //     ->minItems(2)
+                        //     ->maxItems(2)
+                        //     ->options(function (Get $get){
+                        //         if($get('include_segment_id') == ''){
+                        //             return [];
+                        //         }
+                        //         $customers = Customers::where('segment_id',$get('include_segment_id'))->get()->toArray();
+                        //         $customers = (array) current($customers);
+                                
+                        //         $attributes = array_keys(json_decode($customers['attributes'],true));
+                        //         array_push($attributes,"name","email","contact_no");
+                        //         $data = [];
+                        //         foreach($attributes as $key => $value){
+                        //             $data[$value] = $value;
+                        //         }
+                        //         return $data;
+                        //     })
+
+                    ]),
+                    // ->hidden(function (Get $get){
+                    //     if($get('channel') == "Whatsapp"){
+                    //         return false;
+                    //     }else{
+                    //         return true;
+                    //     }
+                    // }),
                
 
                     
@@ -102,7 +223,14 @@ class CampaignResource extends Resource
                         ->required(), 
 
 
-                    ]),
+                    ])
+                    ->hidden(function (Get $get){
+                        if($get('channel') == "Email"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    }),
 
                     // Section::make('Retargetting')
                     // ->schema([
