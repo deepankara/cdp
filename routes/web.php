@@ -22,6 +22,31 @@ use Symfony\Component\DomCrawler\Crawler;
 
 Route::get('/', function () {
 
+    $users = DB::table('customers')->where('segment_id',1)->get()->toArray();
+    foreach($users as $key => $value){
+        $json = json_decode($value->attributes,true);
+        $json['video_url'] = "https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4";
+        $json["coupon_code"] = "COUPON45";
+        $json["button_url"] = "https://auxilo.com/";
+        DB::table('customers')->whereId($value->id)->update(["attributes"=>json_encode($json)]);
+    }
+
+    $whatsapp = DB::table('whatsapp_templates')->whereId(4)->get()->toArray();
+    $whatsapp = (array) current($whatsapp);
+    $buttons = json_decode($whatsapp['buttons'],true);
+
+    if(count($buttons) >= 1){
+        foreach($buttons as $Key => $value){
+            if($value['option'] == "URL"){
+                $body = [];
+                $body["name"] = "URL";
+                $body["type"] = "body";
+            }
+        }
+    }
+
+    echo "<pre>";print_r($buttons);exit;
+
     $email = DB::table('email_analytics')->distinct('sg_message_id')->count();
     $whatsapp = DB::table('whatsapp_analytics')->distinct('wa_id')->count();
     $sms = DB::table('sms_analytics')->count();

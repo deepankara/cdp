@@ -13,6 +13,9 @@ class Campaign extends Model
     protected $fillable = [
         'name',
         'include_segment_id',
+        "channel",
+        "whatsapp_template",
+        "wa_variables",
         'rule_id',
         'email_subject',
         'email_from_name',
@@ -22,6 +25,7 @@ class Campaign extends Model
     ];
 
     protected $casts = [
-        "retarget" => 'array'
+        "retarget" => 'array',
+        "wa_variables" => 'array'
     ];
 }

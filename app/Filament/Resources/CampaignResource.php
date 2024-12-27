@@ -111,14 +111,26 @@ class CampaignResource extends Resource
                             $body = [];
                             for($i=1; $i <= $count; $i++){ 
                                 $body = [];
-                                $body["name"] = "{{$i}}";
+                                $body["name"] = "{{" . $i . "}}";
                                 $body["type"] = "body";
                                 array_push($array, $body);
                             }
                         }
-                        $set('variables',$array);
-                    })
-                    ->required(),
+
+                        $buttons = $whatsapp['buttons'];
+                        if(count($buttons) >= 1){
+                            foreach($buttons as $Key => $value){
+                                if($value['option'] == "URL" || $value["option"] == "COPY_CODE"){
+                                    $body = [];
+                                    $body["name"] = $value['option'];
+                                    $body["type"] = "button";
+                                    array_push($array, $body);
+                                }
+                            }
+                        }
+                        $set('wa_variables',$array);
+                    }),
+                    
                 
                 Forms\Components\Select::make('include_segment_id')
                     ->options(Segment::all()->pluck('name','id'))->native(false)
@@ -139,7 +151,7 @@ class CampaignResource extends Resource
                 
                 Section::make('Whatsapp Details')
                     ->schema([
-                        Repeater::make('variables')
+                        Repeater::make('wa_variables')
                             ->schema([
                                 TextInput::make('name')->required()->readonly(),
                                 TextInput::make('type')->required()->readonly(),
@@ -160,7 +172,12 @@ class CampaignResource extends Resource
                                     return $data;
                                 }),
                             ])
+                            ->label('Variables')
                             ->required()
+                            ->deletable(false)
+                            ->addable(false)
+                            ->addable(false)
+                            ->reorderable(false)
                             ->columns(3)
 
                         // Forms\Components\Select::make('body_variable')
@@ -215,12 +232,7 @@ class CampaignResource extends Resource
                         ->label('Template')
                         ->native(false),
 
-                        DateTimePicker::make('schedule')
-                        ->label('Schedule')
-                        ->minDate(now()) // Restrict to today and future dates
-                        ->seconds(false)
-                        ->native(false)
-                        ->required(), 
+                        
 
 
                     ])
@@ -231,6 +243,13 @@ class CampaignResource extends Resource
                             return true;
                         }
                     }),
+
+                    DateTimePicker::make('schedule')
+                        ->label('Schedule')
+                        ->minDate(now()) // Restrict to today and future dates
+                        ->seconds(false)
+                        ->native(false)
+                        ->required(), 
 
                     // Section::make('Retargetting')
                     // ->schema([

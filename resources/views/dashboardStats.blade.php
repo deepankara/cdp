@@ -163,6 +163,7 @@
 @livewire(\App\Livewire\ChartsStats::class)
 @if(isset($result['processed']) && $result['processed'] != 0)
 @livewire(\App\Livewire\Charts::class)
+@livewire(\App\Livewire\DashCharts::class)
 
 @endif
 </x-filament-panels::page>
