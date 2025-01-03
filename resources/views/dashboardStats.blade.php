@@ -60,10 +60,35 @@
         </div>
     </div>
 
+    <div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-3">
+        <a href="{{route('filament.admin.pages.email-analytics')}}">
+            <div class="fi-wi-stats-overview-stat relative rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+                <div class="flex items-center justify-between">
+                    <div>
+                        @livewire(\App\Livewire\EmailCharts::class)
+                    </div>
+                </div>
+            </div>    
+        </a> 
+        <a href="{{route('filament.admin.pages.email-analytics')}}">
+            <div class="fi-wi-stats-overview-stat relative rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+                <div class="flex items-center justify-between">
+                    <div>
+                        @livewire(\App\Livewire\WhatsappCharts::class)
+                    </div>
+                </div>
+            </div>
+        </a>   
+    </div>
+
+    <?php /*
     <a href="{{route('filament.admin.pages.email-analytics')}}">
     <h4>Email Analytics</h4>
     </a>
+
     <div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        
+        <!-- Sent -->
         <div class="fi-wi-stats-overview-stat relative rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
             <div class="flex items-center justify-between">
                 <div>
@@ -115,12 +140,11 @@
             </div>
         </div>
     </div>
-<br>
-
-<a href="{{route('filament.admin.pages.email-analytics')}}">
-    <h4>Whatsapp Analytics</h4>
+    <br>
+    <a href="{{route('filament.admin.pages.email-analytics')}}">
+        <h4>Whatsapp Analytics</h4>
     </a>
-<div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-3">
+    <div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-3">
         <div class="fi-wi-stats-overview-stat relative rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
             <div class="flex items-center justify-between">
                 <div>
@@ -157,7 +181,7 @@
             </div>
         </div>
     </div>
-
+    */ ?>
 
 <br>
 <div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-3">

@@ -13,24 +13,23 @@ use Flowframe\Trend\Trend;
 use Flowframe\Trend\TrendValue;
 use Illuminate\Support\Collection;
 
-class DashCharts extends ChartWidget
+class WhatsappCharts extends ChartWidget
 {
-    protected static ?string $heading = 'Overall Analytics';
+    protected static ?string $heading = 'Whatsapp Summary';
 
     protected function getData(): array
     {
         
-        $email = DB::table('email_analytics')->distinct('sg_message_id')->count();
-        $whatsapp = DB::table('whatsapp_analytics')->distinct('wa_id')->count();
-        $sms = DB::table('sms_analytics')->count();
+        $whatsapp = DB::table('whatsapp_analytics')->select('status', DB::raw('count(*) as status_count'))
+        ->groupBy('status')->get()->toArray();
 
-        $labels = ['Email', 'WhatsApp', 'SMS'];
+        $keyValueArray = [];
+        
+        foreach ($whatsapp as $item) {
+            $keyValueArray[$item->status] = $item->status_count;
+        }
 
-        $data = [
-            'Email' => $email,
-            'WhatsApp' => $whatsapp,
-            'SMS' => $sms,
-        ];
+        $whatsapp = $keyValueArray;
 
         // $datasets = collect($data)->map(fn($value, $label) => [
         //     'label' => $label,
@@ -42,28 +41,24 @@ class DashCharts extends ChartWidget
         //         default => '#CCCCCC',
         //     },
         //     ])->values()->toArray();
-    
+        
+        //echo "<pre>Whatsapp: "; print_r($whatsapp); echo "</pre>"; die;
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Overall',
-                    'data' => array_values($data),
-                    'fill' => false,
+                    'label' => 'Whatsapp Summary',
+                    'data' => array_values($whatsapp),
                     'backgroundColor' => [
-                        'rgba(18, 81, 165, 0.57)', //'rgba(116, 184, 223, 0.91)',  // Email
-                        'rgba(72, 155, 99, 0.68)', // WhatsApp
-                        'rgba(120, 61, 197, 0.68)', // SMS
+                        'rgba(126, 84, 5, 0.53)', // Processed
+                        'rgba(6, 97, 6, 0.34)', // Delivered
+                        'rgba(80, 9, 15, 0.81)', // Open
+                        //'rgb(175, 34, 100)', // Clicked
                     ],
-                    'borderColor' => [
-                        'rgba(18, 81, 165, 0.57)', //'rgba(1, 75, 117, 0.63)', // Email
-                        'rgba(72, 155, 99, 0.68)', // WhatsApp
-                        'rgba(120, 61, 197, 0.68)', // SMS                        
-                    ],
-                    'borderWidth' => 1
+                    'hoverOffset' => 4
                 ],
             ],
-            'labels' => ['Email', 'WhatsApp', 'SMS'],
+            'labels' => ['sent', 'delivered', 'read']
         ];
       
 
@@ -116,15 +111,22 @@ class DashCharts extends ChartWidget
 
     protected function getType(): string
     {
-        return 'bar';
+        return 'pie';
     }
 
     protected function getOptions(): RawJs
     {
         return RawJs::make(<<<JS
-            {
-                indexAxis: 'y',
-            }
+        {
+            scales: {
+                x: {
+                    display : false
+                },
+                y: {
+                    display : false
+                }
+            },
+        }
         JS);
     }
 
