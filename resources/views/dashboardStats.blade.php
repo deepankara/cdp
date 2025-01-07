@@ -78,7 +78,16 @@
                     </div>
                 </div>
             </div>
-        </a>   
+        </a>
+        <a href="{{route('filament.admin.pages.email-analytics')}}">
+            <div class="fi-wi-stats-overview-stat relative rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
+                <div class="flex items-center justify-between">
+                    <div>
+                        @livewire(\App\Livewire\SMSCharts::class)
+                    </div>
+                </div>
+            </div>
+        </a>           
     </div>
 
     <?php /*
