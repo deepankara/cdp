@@ -32,6 +32,8 @@ use Filament\Tables\Actions\ReplicateAction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Contracts\Support\Htmlable;
 use App\Models\Customers;
+use App\Models\SmsTemplate;
+
 
 
 class CampaignResource extends Resource
@@ -72,6 +74,34 @@ class CampaignResource extends Resource
                     ->label('Channel')
                     ->live()
                     ->required(),
+                
+                Forms\Components\Select::make('sms_template')
+                    ->options(SmsTemplate::all()->pluck('name','id'))->native(false)
+                    ->label('Sms Template')
+                    ->live()
+                    ->hidden(function (Get $get){
+                        if($get('channel') == "SMS"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    })
+                    ->afterStateUpdated(function (?string $state,Set $set){
+                        $sms = SmsTemplate::whereId($state)->get()->toArray();
+                        $sms = (array) current($sms);
+                        $array = [];
+
+                        $template = $sms['sms'];
+
+                        $findText = preg_match_all('/{{(.*?)}}/', $template, $matches);
+
+                        foreach ($matches[1] as $placeholder) {
+                            $body = [];
+                            $body['name'] = $placeholder;
+                            array_push($array, $body);
+                        }
+                        $set('sms_variables',$array);
+                    }),
 
                 Forms\Components\Select::make('whatsapp_template')
                     ->options(WhatsappTemplate::all()->pluck('name','id'))->native(false)
@@ -148,6 +178,44 @@ class CampaignResource extends Resource
                     ->live()
                     ->label('Audience Filter'),
 
+                    Section::make('SMS Details')
+                    ->schema([
+                        Repeater::make('sms_variables')
+                            ->schema([
+                                TextInput::make('name')->required()->readonly(),
+                                Select::make('value')
+                                ->options(function (Get $get){
+                                    if($get('../../include_segment_id') == ''){
+                                        return [];
+                                    }
+                                    $customers = Customers::where('segment_id',$get('../../include_segment_id'))->get()->toArray();
+                                    $customers = (array) current($customers);
+                                    
+                                    $attributes = array_keys(json_decode($customers['attributes'],true));
+                                    array_push($attributes,"name","email","contact_no");
+                                    $data = [];
+                                    foreach($attributes as $key => $value){
+                                        $data[$value] = $value;
+                                    }
+                                    return $data;
+                                }),
+                            ])
+                            ->label('Variables')
+                            ->required()
+                            ->deletable(false)
+                            ->addable(false)
+                            ->addable(false)
+                            ->reorderable(false)
+                            ->columns(2)
+                        ])
+                        ->hidden(function (Get $get){
+                        if($get('channel') == "SMS"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    }),
+
                 
                 Section::make('Whatsapp Details')
                     ->schema([
@@ -200,14 +268,14 @@ class CampaignResource extends Resource
                         //         return $data;
                         //     })
 
-                    ]),
-                    // ->hidden(function (Get $get){
-                    //     if($get('channel') == "Whatsapp"){
-                    //         return false;
-                    //     }else{
-                    //         return true;
-                    //     }
-                    // }),
+                        ])
+                        ->hidden(function (Get $get){
+                        if($get('channel') == "Whatsapp"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    }),
                
 
                     

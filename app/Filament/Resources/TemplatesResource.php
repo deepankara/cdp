@@ -33,6 +33,9 @@ class TemplatesResource extends Resource
 
     protected static ?string $navigationGroup = 'Templates';
 
+    protected static ?string $modelLabel = 'Email';
+    protected static ?string $pluralModelLabel = 'Email';
+
     protected static ?string $navigationIcon = 'heroicon-o-document';
 
     public static function getNavigationIcon(): string | Htmlable | null

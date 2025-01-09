@@ -12,6 +12,7 @@ use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Cache;
 use Auth;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Arr;
 
 class EmailController extends BaseController
 {
@@ -142,6 +143,8 @@ class EmailController extends BaseController
                     }
                 }
             }
+
+            
             // echo "<pre>";print_r($component);exit;
             
             $whatsapp = [];
@@ -154,6 +157,7 @@ class EmailController extends BaseController
                 "code" => "en_us"
             ];
             $whatsapp['template']['components'] = $component;
+
             // echo "<pre>";print_r(json_encode($whatsapp));exit;
 
             $curl = curl_init();
@@ -177,13 +181,24 @@ class EmailController extends BaseController
             $response = curl_exec($curl);
             curl_close($curl);
             $response = json_decode($response,true);
-            echo "<pre>";print_r($response);exit;
-
             if(isset($response['messages'][0]['id']) && $response['messages'][0]['id'] != ''){
                 $json['wa_id'] = $response['messages'][0]['id'];
                 $json['template'] = $requestData['template_id'];
+                
+                $statuses = ["read", "sent", "delivered", "failed"];
+                $whatsappData = [];
+            
+                foreach ($statuses as $status) {
+                    $whatsappData[] = [
+                        'wa_id' => $response['messages'][0]['id'],
+                        'status' => $status,
+                        'mobile_number' => str_replace('+','',$requestData['mobile_no']),
+                        'created_at' => Carbon::now(),
+                        'template_id' => $requestData['template_id'],
+                    ];
+                }
+                DB::table("whatsapp_analytics")->insert($whatsappData);
             }
-
         }
         $isSendMessage = 200;
         
@@ -202,13 +217,13 @@ class EmailController extends BaseController
     public static function sendSms($sms,$phoneNumber,$templateId){
         $curl = curl_init();
         $json = [
-            "phone" => $phoneNumber,
+            "phone" => str_replace('91','',$phoneNumber),
             "message"=>$sms
         ];
         $json = json_encode($json);
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://wsnpp7trhj.execute-api.ap-south-1.amazonaws.com/dev/sendmessage',
+            CURLOPT_URL => 'https://wsnpp7trhj.execute-api.ap-south-1.amazonaws.com/dev/api/sendmessage',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -338,20 +353,274 @@ class EmailController extends BaseController
     }
 
     public function sendEmail(Request $request){
-        // Redis::set('key', 'value');
-
-      
         $campaign = DB::table('campaign')->select('campaign.include_segment_id',
         'campaign.rule_id','campaign.template_id','campaign.schedule',
         'templates.html_content',
         'campaign.email_subject',
-        'campaign.email_from_name','campaign.id as campaign_id')->leftjoin('templates','templates.id','campaign.template_id')->orderBy('campaign_id','desc')->get()->toArray();
+        'campaign.email_from_name','campaign.id as campaign_id')->leftjoin('templates','templates.id','campaign.template_id')
+        ->orderBy('campaign_id','desc')
+        ->where('campaign.channel','Email')
+        ->get()->toArray();
         $campaign = (array) current($campaign);
 
 
         $customers = DB::table('customers')->where('segment_id',$campaign['include_segment_id']);
         if(isset($campaign['rule_id']) && $campaign['rule_id'] != '') {
-            $rule = DB::table('rules')->whereId($campaign['rule_id'])->first();
+            $customers = $this->rulesSync($campaign['rule_id'],$customers);
+        }else{
+            $customers = $customers->get()->toArray();
+        }
+        
+        $html_content = $campaign['html_content'];
+        foreach($customers as $key => $value){
+            $convertArray = (array) $value;
+            $attributes = json_decode($value->attributes,true);
+            $attributes = array_merge($convertArray,$attributes);
+            $unsubscribeUrl = 'https://example.com/unsubscribe?email=' . urlencode($attributes['email']);
+            $attributes['unsubscribe'] = '<a href="' . $unsubscribeUrl . '">Unsubscribe</a>';
+            $customerHtmlContent = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($attributes) {
+                $key = $matches[1]; 
+                return $attributes[$key] ?? $matches[0]; 
+            }, $html_content);
+            echo "<pre>";print_r($value);
+            $value->html_content = $customerHtmlContent;
+            $this->sendSendGridEmail($campaign,$value);
+            if($key == 0){
+                DB::table('campaign')->whereId($campaign['campaign_id'])->update(['campaign_executed'=>true]);
+            }
+        }
+    }
+
+    public function sendCampSms(Request $request){
+        $campaign = DB::table('campaign')->where('channel',"SMS")->get()->toArray();
+        $campaign = (array) current($campaign);
+
+        $customers = DB::table('customers')->where('segment_id',$campaign['include_segment_id']);
+
+        $smsVariables = json_decode($campaign['sms_variables'],true);
+
+        if(isset($campaign['rule_id']) && $campaign['rule_id'] != '') {
+            $customers = $this->rulesSync($campaign['rule_id'],$customers);
+        }else{
+            $customers = $customers->get()->toArray();
+        }
+
+        $template = DB::table('sms_templates')->where("id",$campaign['sms_template'])->value('sms');
+
+        $smsVar = [];
+        foreach($smsVariables as $key => $value){
+            $smsVar[$value['name']] = $value['value'];
+        }
+
+        foreach ($customers as $customerKey => $customerValue) {
+            $convertArray = (array) $customerValue;
+            $attributes = json_decode($customerValue->attributes,true);
+            $attributes = array_merge($convertArray,$attributes);
+
+            foreach ($smsVar as $placeholder => $key) {
+                $value = $whatsapp[$key] ?? $attributes[$key] ?? '';
+                $template = str_replace("{{{$placeholder}}}", $value, $template);
+            }
+
+            $curl = curl_init();
+            $phoneNumber = $attributes['contact_no'];
+            $json = [
+                "phone" => str_replace('91','',$phoneNumber),
+                "message"=>$template
+            ];
+            $json = json_encode($json);
+
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => 'https://wsnpp7trhj.execute-api.ap-south-1.amazonaws.com/dev/api/sendmessage',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS =>$json,
+                CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+                ),
+            ));
+            
+            $response = curl_exec($curl);
+            $response = json_decode($response,true);
+
+            if(isset($response) && $response['status'] != ''){
+                $smsData = [];
+                $smsData['phone'] = $phoneNumber;
+                $smsData['sms'] = $template;
+                $smsData["created_at"] = Carbon::now();
+                $smsData["campaign_id"] = $campaign['id'];
+                DB::table("sms_analytics")->insert($smsData);
+                // exit;
+            }
+            echo "<pre>";print_r($response);exit;
+
+        }
+    }
+
+    public function sendWa(Request $request){
+        $campaign = DB::table('campaign')->where('channel',"Whatsapp")->get()->toArray();
+        $campaign = (array) current($campaign);
+
+        $customers = DB::table('customers')->where('segment_id',$campaign['include_segment_id']);
+
+        $whatsappVariables = json_decode($campaign['wa_variables'],true);
+
+        if(isset($campaign['rule_id']) && $campaign['rule_id'] != '') {
+            $customers = $this->rulesSync($campaign['rule_id'],$customers);
+        }else{
+            $customers = $customers->get()->toArray();
+        }
+        
+        $template = DB::table('whatsapp_templates')->where("id",$campaign['whatsapp_template'])->get()->toArray();
+        $template = (array) current($template);
+
+
+        $component = [];
+
+        foreach ($customers as $customerKey => $customerValue) {
+            $convertArray = (array) $customerValue;
+            $attributes = json_decode($customerValue->attributes,true);
+            $attributes = array_merge($convertArray,$attributes);
+
+            if (isset($template['header_type']) && $template['header_type'] != 'NONE') {
+                $header = [];
+                $header['type'] = "HEADER";
+                $header['parameters'] = [];
+
+                if($template['header_type'] == "VIDEO"){
+                    $header['parameters'][0] = [
+                        "type" => "video",
+                        "video" => ['link'=>$attributes[$whatsappVariables[0]['value']]]
+                    ];
+                }
+
+                if($template['header_type'] == "TEXT"){
+                    $header['parameters'][0] = [
+                        "type" => "text",
+                        "text" => $attributes[$whatsappVariables[0]['value']]
+                    ];
+                }
+                $component[] = $header;
+            }
+
+
+            if (isset($template['html_content']) && str_contains($template['html_content'],"{{")) {
+                $body = [];
+                $body['type'] = "BODY";
+                $body['parameters'] = [];
+                foreach ($whatsappVariables as $index => $text) {
+                    if($text['type'] == "body"){
+                        $body['parameters'][] = [
+                            "type" => "text",
+                            "text" => $attributes[$text['value']]
+                        ];
+                    }
+                }
+                $component[] = $body;
+            }
+
+
+            if(isset($template['buttons']) && $template['buttons'] != ''){
+                $buttonJson = json_decode($template['buttons'],true);
+                foreach($buttonJson as $key => $value){
+                    if($value['option'] == "COPY_CODE"){
+                        $button = [];
+                        $button['type'] = "button";
+                        $button['sub_type'] = strtolower($value['option']);
+                        $button['index'] = $key;
+                        // $button['parameters'][] = [];
+                        $button['parameters']['type'] = "coupon_code";
+                        $option = $value['option'];
+                        $result = Arr::first($whatsappVariables, function ($item) use ($option) {
+                            return $item['name'] === $option;
+                        });
+                        $button['parameters']['coupon_code'] = $attributes[$result['value']];
+                        $button['parameters'] = array($button['parameters']);
+                        $component[] = $button;
+                    }
+
+                    if($value['option'] == "URL"){
+                        $button = [];
+                        $button['type'] = "button";
+                        $button['sub_type'] = strtolower($value['option']);
+                        $button['index'] = $key;
+                        // $button['parameters'][] = [];
+                        $button['parameters']['type'] = "text";
+                        $option = $value['option'];
+
+                        $result = Arr::first($whatsappVariables, function ($item) use ($option) {
+                            return $item['name'] === $option;
+                        });
+                        $button['parameters']['text'] =  $attributes[$result['value']];
+                        $button['parameters'] = array($button['parameters']);
+                        $component[] = $button;
+                    }
+                }
+            }
+
+
+            $whatsapp = [];
+            $whatsapp['messaging_product'] = "whatsapp";
+            $whatsapp['to'] = $attributes['contact_no'];
+            $whatsapp['type'] = "template";
+            $whatsapp['template'] = [];
+            $whatsapp['template']['name'] = $template['name'];
+            $whatsapp['template']['language'] = [
+                "code" => "en_us"
+            ];
+            $whatsapp['template']['components'] = $component;
+
+
+
+
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://graph.facebook.com/v21.0/105029218931496/messages',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS =>json_encode($whatsapp),
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+                'Authorization: Bearer '.env('WHATSAPP_API_TOKEN')
+            ),
+            ));
+
+            $response = curl_exec($curl);
+            curl_close($curl);
+            $response = json_decode($response,true);
+            if (isset($response['messages'][0]['id']) && $response['messages'][0]['id'] != '') {
+                $statuses = ["read", "sent", "delivered", "failed"];
+                $whatsappData = [];
+            
+                foreach ($statuses as $status) {
+                    $whatsappData[] = [
+                        'wa_id' => $response['messages'][0]['id'],
+                        'status' => $status,
+                        'mobile_number' => str_replace('+','',$attributes['contact_no']),
+                        'created_at' => Carbon::now(),
+                        'campaign_id' => $campaign['id'],
+                    ];
+                }
+                DB::table("whatsapp_analytics")->insert($whatsappData);
+            }
+            echo "<pre>";print_r($response);exit;
+            
+
+        }
+    }
+
+    public static function rulesSync($ruleId,$customers){
+        $rule = DB::table('rules')->whereId($ruleId)->first();
             if($rule){
                 $ruleCondition = json_decode($rule->rule, true);
                 $directColumns = ['email','name','contact_no'];
@@ -483,29 +752,7 @@ class EmailController extends BaseController
                     }
                 });
             }
-            $customers = $customers->get()->toArray();
-        }else{
-            $customers = $customers->get()->toArray();
-        }
-        // echo "<pre>";print_r($customers);exit;
-
-        $html_content = $campaign['html_content'];
-        foreach($customers as $key => $value){
-            $convertArray = (array) $value;
-            $attributes = json_decode($value->attributes,true);
-            $attributes = array_merge($convertArray,$attributes);
-            $unsubscribeUrl = 'https://example.com/unsubscribe?email=' . urlencode($attributes['email']);
-            $attributes['unsubscribe'] = '<a href="' . $unsubscribeUrl . '">Unsubscribe</a>';
-            $customerHtmlContent = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($attributes) {
-                $key = $matches[1]; 
-                return $attributes[$key] ?? $matches[0]; 
-            }, $html_content);
-            $value->html_content = $customerHtmlContent;
-            $this->sendSendGridEmail($campaign,$value);
-            if($key == 0){
-                DB::table('campaign')->whereId($campaign['campaign_id'])->update(['campaign_executed'=>true]);
-            }
-        }
+            return $customers->get()->toArray();
     }
 
     public static function sendSendGridEmail($campaign,$customers){
@@ -582,6 +829,7 @@ class EmailController extends BaseController
                 ]
             ];
         }
+
         $curl = curl_init();
         curl_setopt_array($curl, array(
             CURLOPT_URL => 'https://api.sendgrid.com/v3/mail/send',
@@ -599,35 +847,54 @@ class EmailController extends BaseController
             ),
         ));
         $response = curl_exec($curl);
-        // echo "<pre>";print_r($response);
         $http_status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        echo "<pre>";print_r($http_status_code);
+        echo "<pre>";print_r($http_status_code);exit;
         curl_close($curl);
         return true;
     }
 
     public function whatsappWebook(Request $request){
         $requestData = $request->all();
-        Log::info($requestData);exit;
+        // echo $requestData['hub_challenge'];exit;
+        Log::info($requestData);
         $statusData = $requestData['entry'][0]['changes'][0]['value']['statuses'][0];
         $whatsapp = [];
-        $whatsapp['status']  = $statusData['status'];
-        $whatsapp['mobile_number']  = $statusData['recipient_id'];
-        $whatsapp['wa_id']  = $statusData['id'];
-        $whatsapp['time']  = $this->convertToIST($statusData['timestamp']);
-        $whatsapp['created_at']  = Carbon::now();
-        DB::table('whatsapp_analytics')->insert($whatsapp);
+        if($statusData['status'] == 'failed'){
+            DB::table('whatsapp_analytics')->whereNot('status','failed')
+                                            ->where('wa_id',$statusData['id'])
+                                            ->delete();
+            
+           
+        }
+
+        if($statusData['status'] == 'delivered'){
+            DB::table('whatsapp_analytics')->where('status','failed')
+                                            ->where('wa_id',$statusData['id'])
+                                            ->delete();
+
+        }
+
+        DB::table('whatsapp_analytics')->where('status',$statusData['status'])
+                                        ->where('wa_id',$statusData['id'])
+                                        ->update(['time'=>$this->convertToIST($statusData['timestamp'])]);
+        
+
+        // $whatsapp['status']  = $statusData['status'];
+        // $whatsapp['mobile_number']  = $statusData['recipient_id'];
+        // $whatsapp['wa_id']  = $statusData['id'];
+        // $whatsapp['time']  = $this->convertToIST($statusData['timestamp']);
+        // $whatsapp['created_at']  = Carbon::now();
+        // DB::table('whatsapp_analytics')->insert($whatsapp);
     }
 
     public function emailWebhook(Request $request){
-        Log::info('test');
         $requestData = $request->all();
         Log::info(json_encode($request->all()));
         $insertData = [];
         $tableName = 'email_analytics';
         foreach($requestData as $key => $value){
             if(isset($value['type']) && $value['type'] == "transactional"){
-                $tableName = 'email_analytics_api';
+                // $tableName = 'email_analytics_api';
                 $insertData[$key]['template_id'] = $value['template_id'];
 
             }else{

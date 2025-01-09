@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\EmailController;
 use Jenssegers\Agent\Agent;
@@ -25,22 +26,33 @@ Route::get('/', function () {
     $users = DB::table('customers')->where('segment_id',1)->get()->toArray();
     foreach($users as $key => $value){
         $json = json_decode($value->attributes,true);
-        $json['video_url'] = "https://www.sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4";
-        $json["coupon_code"] = "COUPON45";
-        $json["button_url"] = "https://auxilo.com/";
+        $json['loan_amount'] = "45,000";
+        $json["loan_account_no"] = "10235677";
+        $json["loan_date"] = "06/02/2024";
         DB::table('customers')->whereId($value->id)->update(["attributes"=>json_encode($json)]);
     }
+    exit;
+
+    
 
     $whatsapp = DB::table('whatsapp_templates')->whereId(4)->get()->toArray();
     $whatsapp = (array) current($whatsapp);
     $buttons = json_decode($whatsapp['buttons'],true);
 
+    $jsonButton = [];
+
+    
+
     if(count($buttons) >= 1){
         foreach($buttons as $Key => $value){
             if($value['option'] == "URL"){
-                $body = [];
-                $body["name"] = "URL";
-                $body["type"] = "body";
+                $button = [];
+                $button['type'] = "button";
+                $button['sub_type'] = strtolower($value['option']);
+                $button['index'] = $key;
+                $button['parameters']['type'] = "coupon_code";
+                $button['parameters']['coupon_code'] = $requestData['template_attr']['button']['button_offer_code'];
+                $button['parameters'] = array($button['parameters']);
             }
         }
     }
@@ -50,7 +62,6 @@ Route::get('/', function () {
     $email = DB::table('email_analytics')->distinct('sg_message_id')->count();
     $whatsapp = DB::table('whatsapp_analytics')->distinct('wa_id')->count();
     $sms = DB::table('sms_analytics')->count();
-    echo $test;exit;
 
 //     $whatsappTemplate = DB::table('whatsapp_templates')->where('id',2)->get()->toArray();
 //     $whatsappTemplate = (array) current($whatsappTemplate);
@@ -217,4 +228,6 @@ Route::get('/', function () {
 Route::get('/sendEmail', [EmailController::class, 'sendEmail']);
 Route::get('/sendRetargetting', [EmailController::class, 'emailRetargetting']);
 Route::get('/sendClickRetargetting', [EmailController::class, 'emailRetargettingOpen']);
+Route::get('/sendWhatsapp', [EmailController::class, 'sendWa']);
+Route::get('/sendSms', [EmailController::class, 'sendCampSms']);
 

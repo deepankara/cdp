@@ -21,6 +21,10 @@ class SmsTemplateResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationGroup = 'Templates';
 
+    
+    protected static ?string $modelLabel = 'SMS';
+    protected static ?string $pluralModelLabel = 'SMS';
+
     public static function getNavigationIcon(): string | Htmlable | null
     {
         return 'https://cdn-icons-png.flaticon.com/512/1280/1280089.png';

@@ -149,7 +149,7 @@ class EmailAnalytics extends Page implements HasTable,HasForms
         return $form
             ->schema([
             Select::make('campaign_id')
-                ->options(Campaign::all()->pluck('name','id'))->native(false)
+                ->options(Campaign::all()->where('channel','Email')->pluck('name','id'))->native(false)
                 ->label('Campaign')
                 ->required()
                 ,
@@ -188,7 +188,7 @@ class EmailAnalytics extends Page implements HasTable,HasForms
 
 
                             // EmailAnalyticsWidget::class
-                        ]),
+                        ])->columns(3),
 
                         Tabs\Tab::make('Stats')
                         ->schema([

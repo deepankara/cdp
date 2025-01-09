@@ -1,16 +1,13 @@
 <?php
-
 namespace App\Livewire;
 
 use Filament\Widgets\ChartWidget;
 use Carbon\Carbon;
 use DB;
 use Filament\Support\RawJs;
-use App\Models\EmailAnalyticsApiTable;
+use App\Models\EmailAnalyticsTable;
 use App\Models\WhatsappAnalytics;
 use App\Models\SmsAnalytics;
-use Flowframe\Trend\Trend;
-use Flowframe\Trend\TrendValue;
 use Illuminate\Support\Collection;
 
 class ChartsStats extends ChartWidget
@@ -19,77 +16,52 @@ class ChartsStats extends ChartWidget
 
     protected function getData(): array
     {
-        
-        // $email = DB::table('email_analytics')->distinct('sg_message_id')->count();
-        // $whatsapp = DB::table('whatsapp_analytics')->distinct('wa_id')->count();
-        // $sms = DB::table('sms_analytics')->count();
-
-        // $labels = ['Email', 'WhatsApp', 'SMS'];
-
-        // $data = [
-        //     'Email' => $email,
-        //     'WhatsApp' => $whatsapp,
-        //     'SMS' => $sms,
-        // ];
-
-        // $datasets = collect($data)->map(fn($value, $label) => [
-        //     'label' => $label,
-        //     'data' => ['source'=>$label,'value'=>$value],
-        //     'backgroundColor' => match ($label) {
-        //         'Email' => '#FFCC00',
-        //         'WhatsApp' => '#4CAF50',
-        //         'SMS' => '#2196F3',
-        //         default => '#CCCCCC',
-        //     },
-        //     ])->values()->toArray();
-    
-        // return [
-        //     'datasets' => [
-        //         [
-        //             'label' => 'Overall',
-        //             'data' => array_values($data),
-        //             'backgroundColor' => [
-        //                 '#FFCC00', // Email
-        //                 '#4CAF50', // WhatsApp
-        //                 '#2196F3', // SMS
-        //             ],
-        //         ],
-        //     ],
-        //     'labels' => ['Email', 'WhatsApp', 'SMS'],
-        // ];
-
         $startDate = now()->subMonths(3)->startOfMonth();
         $endDate = now()->endOfMonth();
 
-        $emailData = Trend::model(EmailAnalyticsApiTable::class)
-        ->between(
-            start: $startDate,
-            end: $endDate,
-        )
-        ->perMonth()
-        ->count('sg_message_id');
+        $months = collect();
+        for ($i = 0; $i < 3; $i++) {
+            $months->prepend(now()->subMonths($i)->startOfMonth()); // Use prepend to reverse order
+        }
 
-        $whatsappData = Trend::model(WhatsappAnalytics::class)
-            ->between(
-                start: $startDate,
-                end: $endDate,
-            )
-            ->perMonth()
-            ->count('wa_id');
+        $emailData = collect();
+        $whatsappData = collect();
+        $smsData = collect();
 
-        $smsData = Trend::model(SmsAnalytics::class)
-            ->between(
-                start: $startDate,
-                end: $endDate,
-            )
-            ->perMonth()
-            ->count();
+        foreach ($months as $month) {
+            $emailData->push(
+                EmailAnalyticsTable::whereNotNull('indian_time')
+                    ->whereMonth('indian_time', $month->month)
+                    ->whereYear('indian_time', $month->year)
+                    ->distinct('sg_message_id')
+                    ->count('sg_message_id')
+            );
+        }
+
+        // Get WhatsApp counts for each month
+        foreach ($months as $month) {
+            $whatsappData->push(
+                WhatsappAnalytics::whereMonth('created_at', $month->month)
+                    ->whereYear('created_at', $month->year)
+                    ->distinct('wa_id')
+                    ->count('wa_id')
+            );
+        }
+
+        // Get SMS counts for each month
+        foreach ($months as $month) {
+            $smsData->push(
+                SmsAnalytics::whereMonth('created_at', $month->month)
+                    ->whereYear('created_at', $month->year)
+                    ->count('phone')
+            );
+        }
 
         return [
             'datasets' => [
                 [
                     'label' => 'Emails',
-                    'data' => $emailData->map(fn (TrendValue $value) => $value->aggregate),
+                    'data' => $emailData,
                     'pointBackgroundColor' => ' #21618c',
                     'backgroundColor' => ' #21618c',
                     'borderColor' => ' #21618c',
@@ -97,7 +69,7 @@ class ChartsStats extends ChartWidget
                 ],
                 [
                     'label' => 'WhatsApp',
-                    'data' => $whatsappData->map(fn (TrendValue $value) => $value->aggregate),
+                    'data' => $whatsappData,
                     'pointBackgroundColor' => ' #239b56',
                     'backgroundColor' => ' #239b56',
                     'borderColor' => ' #239b56',
@@ -105,16 +77,15 @@ class ChartsStats extends ChartWidget
                 ],
                 [
                     'label' => 'SMS',
-                    'data' => $smsData->map(fn (TrendValue $value) => $value->aggregate),
+                    'data' => $smsData,
                     'pointBackgroundColor' => ' #6c3483',
                     'backgroundColor' => ' #6c3483',
                     'borderColor' => ' #6c3483',
                     'tension' => '0.5'
                 ],
             ],
-            'labels' => $emailData->map(fn (TrendValue $value) => date('My', strtotime($value->date)) ),
+            'labels' => $months->map(fn ($month) => $month->format('My')), // This will return the correct order
         ];
-
     }
 
     protected function getType(): string
@@ -130,5 +101,4 @@ class ChartsStats extends ChartWidget
             }
         JS);
     }
-
 }

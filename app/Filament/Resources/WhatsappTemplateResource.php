@@ -40,6 +40,9 @@ class WhatsappTemplateResource extends Resource
 
     protected static ?string $navigationGroup = 'Templates';
 
+    protected static ?string $modelLabel = 'Whatsapp';
+    protected static ?string $pluralModelLabel = 'Whatsapp';
+
     public static function getNavigationIcon(): string | Htmlable | null
     {
         return 'https://cdn-icons-png.flaticon.com/512/15713/15713434.png';

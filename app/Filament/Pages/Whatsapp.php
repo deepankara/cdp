@@ -11,6 +11,8 @@ use Filament\Tables\Table;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use Filament\Tables\Filters\SelectFilter;
+
 
 
 class Whatsapp extends Page implements HasTable
@@ -45,11 +47,21 @@ class Whatsapp extends Page implements HasTable
     {
 
         return $table
-            ->query(WhatsappAnalytics::query())
+            ->query(WhatsappAnalytics::query()->select('whatsapp_analytics.id','whatsapp_analytics.mobile_number','campaign.name as campaign','whatsapp_analytics.status','whatsapp_analytics.template_id as template')->orderBy('time','desc')->leftjoin('campaign','campaign.id','whatsapp_analytics.campaign_id'))
             ->columns([
                 TextColumn::make('mobile_number'),
                 TextColumn::make('status'),
                 TextColumn::make('time')->searchable()->sortable(),
+            ])
+            ->defaultGroup('campaign')
+            ->filters([
+                SelectFilter::make('status')
+                ->options([
+                    'sent' => 'Sent',
+                    'delivered' => 'Delivered',
+                    'read' => 'Read',
+                    'failed' => 'Failed',
+                ])->native(false)
             ])
             ;
     }

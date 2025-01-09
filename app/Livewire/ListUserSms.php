@@ -1,40 +1,33 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Livewire;
 
-use Filament\Pages\Page;
-use Illuminate\Contracts\Support\Htmlable;
-use App\Models\SmsAnalytics;
-use Filament\Tables\Columns\TextColumn;
+use Livewire\Component;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
-use Filament\Tables\Concerns\InteractsWithTable;
+use App\Models\SmsAnalytics;
+use Illuminate\Support\Facades\Session;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 
-
-
-
-class SMS extends Page implements HasTable
+class ListUserSms extends Component implements HasForms, HasTable
 {
     use InteractsWithTable;
-    protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left';
-
-    protected static ?string $navigationGroup = 'Analytics';
-    protected static ?int $navigationSort = 5;
-
-    protected static string $view = 'filament.pages.s-m-s';
-
-    public static function getNavigationIcon(): string | Htmlable | null
+    use InteractsWithForms;
+    public function render()
     {
-        return 'https://cdn-icons-png.flaticon.com/512/1280/1280089.png';
+        return view('livewire.list-user-sms');
     }
 
     public function table(Table $table): Table
     {
-
         return $table
             ->query(SmsAnalytics::query()
             ->select('sms_analytics.id','sms_analytics.phone','sms_analytics.sms','campaign.name as campaign','sms_analytics.created_at')
-            // ->where('phone', Session::get('whatsapp_no'))
+            ->where('phone', Session::get('whatsapp_no'))
             ->leftjoin('campaign','campaign.id','sms_analytics.campaign_id'))
             ->columns([
                 TextColumn::make('phone'),
@@ -50,13 +43,14 @@ class SMS extends Page implements HasTable
                     // Only render the tooltip if the column content exceeds the length limit.
                     return $state;
                 }),
-                TextColumn::make('created_at')->searchable()->sortable(),
+                TextColumn::make('created_at')->dateTime(),
             ])
             ->defaultGroup('campaign')
-
-            
-            ;
+            ->actions([
+                // ...
+            ])
+            ->bulkActions([
+                // ...
+            ]);
     }
-
-
 }

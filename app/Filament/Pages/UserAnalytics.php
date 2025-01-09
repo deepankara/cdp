@@ -28,8 +28,12 @@ use Filament\Actions\Action;
 use Filament\Support\Exceptions\Halt;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Illuminate\Contracts\Support\Htmlable;
 use Filament\Notifications\Notification;
+use Filament\Forms\Components\TextInput;
+// use Filament\Tables\Filters\SelectFilter;
+use Carbon\Carbon;
 
 class UserAnalytics extends Page implements HasTable,HasForms
 {
@@ -62,6 +66,7 @@ class UserAnalytics extends Page implements HasTable,HasForms
         if(Session::get('email_id') != ''){
             $users = DB::table('customers')->where('email',Session::get('email_id'))->get()->toArray();
             $users = (array) current($users);
+            Session::put('user_info',$users);
 
             $mobileNumber = $users['contact_no'];
             $normalizedPhoneNumber = preg_replace('/\D/', '', $mobileNumber);
@@ -76,7 +81,7 @@ class UserAnalytics extends Page implements HasTable,HasForms
             }
             $keyValueArray['custom'] = 'Show';
 
-            $emailAnalyticsData = DB::table('email_analytics_api')
+            $emailAnalyticsData = DB::table('email_analytics')
                 ->select('event', DB::raw('COUNT(DISTINCT sg_message_id) as count'))
                 ->where('email', Session::get('email_id'))
                 ->groupBy('event')
@@ -107,11 +112,20 @@ class UserAnalytics extends Page implements HasTable,HasForms
     {
 
         return $table
-            ->query(WhatsappAnalytics::query()->where('mobile_number',Session::get('whatsapp_no'))->orderBy('time','desc'))
+            ->query(WhatsappAnalytics::query()->select('whatsapp_analytics.time','whatsapp_analytics.id','whatsapp_analytics.mobile_number','campaign.name as campaign','whatsapp_analytics.status','whatsapp_analytics.template_id as template')->where('mobile_number',Session::get('whatsapp_no'))->orderBy('time','desc')->leftjoin('campaign','campaign.id','whatsapp_analytics.campaign_id'))
             ->columns([
                 TextColumn::make('mobile_number'),
                 TextColumn::make('status')->searchable(),
                 TextColumn::make('time')->searchable()->sortable(),
+            ])->defaultGroup('campaign')
+            ->filters([
+                SelectFilter::make('status')
+                ->options([
+                    'sent' => 'Sent',
+                    'delivered' => 'Delivered',
+                    'read' => 'Read',
+                    'failed' => 'Failed',
+                ])->native(false)
             ])
             ;
     }
@@ -158,6 +172,23 @@ class UserAnalytics extends Page implements HasTable,HasForms
         ->schema([
             Tabs::make('Tabs')
             ->tabs([
+                Tabs\Tab::make('User Info')
+                ->schema([
+                    Placeholder::make('Name')
+    ->content(isset(Session::get('user_info')['name']) ? Session::get('user_info')['name'] : ''),
+
+Placeholder::make('Email')
+    ->content(isset(Session::get('user_info')['email']) ? Session::get('user_info')['email'] : ''),
+
+Placeholder::make('Contact No')
+    ->content(isset(Session::get('user_info')['contact_no']) ? Session::get('user_info')['contact_no'] : ''),
+
+Placeholder::make('Created At')
+    ->content(isset(Session::get('user_info')['created_at']) ? Carbon::parse(Session::get('user_info')['created_at'])->format('d-m-Y') : ''),
+
+                ])->columns(4),
+
+
                 Tabs\Tab::make('Whatsapp Info')
                 ->schema([
                     ViewField::make('whatsapp_stats')->view('whatsappStats')
@@ -165,6 +196,10 @@ class UserAnalytics extends Page implements HasTable,HasForms
                 Tabs\Tab::make('Email Info')
                 ->schema([
                     ViewField::make('email_stats')->view('emailStats')
+                ]),
+                Tabs\Tab::make('Sms Info')
+                ->schema([
+                    ViewField::make('sms_stats')->view('userSms')
                 ])
             ])
         ]);

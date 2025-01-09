@@ -16,16 +16,19 @@ class Campaign extends Model
         "channel",
         "whatsapp_template",
         "wa_variables",
+        "sms_variables",
         'rule_id',
         'email_subject',
         'email_from_name',
         'template_id',
+        "sms_template",
         'schedule',
         'retarget'
     ];
 
     protected $casts = [
         "retarget" => 'array',
-        "wa_variables" => 'array'
+        "wa_variables" => 'array',
+        "sms_variables" => 'array'
     ];
 }

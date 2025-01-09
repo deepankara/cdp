@@ -14,7 +14,7 @@ class CreateWhatsappTemplate extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        if(isset($data['header_type']) && $data['header_type'] == "IMAGE" || $data['header_type'] == "DOCUMENT"){
+        if(isset($data['header_type']) && $data['header_type'] == "IMAGE" || $data['header_type'] == "DOCUMENT" || $data['header_type'] == "VIDEO"){
             if($data['header_type'] == "IMAGE"){
                 $attachment = $data['attachment'];
             }else{
@@ -100,7 +100,7 @@ class CreateWhatsappTemplate extends CreateRecord
                 }
             }
 
-            if($whatsappTemplate['header_type'] == "IMAGE" || $whatsappTemplate['header_type'] == "DOCUMENT"){
+            if($whatsappTemplate['header_type'] == "IMAGE" || $whatsappTemplate['header_type'] == "DOCUMENT" || $whatsappTemplate['header_type'] == "VIDEO"){
                 $header['example']['header_handle'] = array($whatsappTemplate['media_id']);
             }
             array_push($json['components'],$header);
@@ -151,7 +151,7 @@ class CreateWhatsappTemplate extends CreateRecord
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://graph.facebook.com/v21.0/107997205295918/message_templates',
+            CURLOPT_URL => 'https://graph.facebook.com/v21.0/105692085530607/message_templates',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -169,7 +169,6 @@ class CreateWhatsappTemplate extends CreateRecord
         $response = curl_exec($curl);
         curl_close($curl);
         $response = json_decode($response,true);
-        echo "<pre>";print_r($response);exit;
         if($response['id'] && $response['id'] != ''){
             $data['template_id'] = $response['id'];
             $data['template_status'] = $response['status'];

@@ -21,9 +21,10 @@ class EmailCharts extends ChartWidget
     {
         
         $email = DB::table('email_analytics')
-        ->select('event', DB::raw('COUNT(DISTINCT email) as user_count'))
+        ->select('event', DB::raw('COUNT(DISTINCT sg_message_id) as user_count'))
         ->groupBy('event')
         ->pluck('user_count', 'event')->toArray();
+
 
         // $datasets = collect($data)->map(fn($value, $label) => [
         //     'label' => $label,
