@@ -20,10 +20,16 @@ class SMSCharts extends ChartWidget
     protected function getData(): array
     {
         
-        $email = DB::table('email_analytics')
-        ->select('event', DB::raw('COUNT(DISTINCT email) as user_count'))
-        ->groupBy('event')
-        ->pluck('user_count', 'event')->toArray();
+        $sms = DB::table('sms_analytics')
+        ->select('*', DB::raw('COUNT(phone) as sms_count'))
+        ->groupBy('template_id')
+        ->pluck('sms_count', 'created_at')->toArray();
+
+        $smsArray = [];
+        foreach ($sms as $key => $value) {
+            $carbon = Carbon::parse($key)->format('My');
+            $smsArray[$carbon] = $value;
+        }
 
         // $datasets = collect($data)->map(fn($value, $label) => [
         //     'label' => $label,
@@ -36,23 +42,24 @@ class SMSCharts extends ChartWidget
         //     },
         //     ])->values()->toArray();
         
-        //echo "<pre>Email: "; print_r($email); echo "</pre>"; die;
+        //echo "<pre>SMS: "; print_r($sms); echo "</pre>"; die;
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Email Summary',
-                    'data' => array_values($email),
+                    'label' => 'SMS Summary',
+                    'data' => array_values($smsArray),
                     'backgroundColor' => [
                         'rgba(199, 75, 137, 0.92)', // Processed
-                        'rgba(46, 81, 196, 0.72)', // Delivered
-                        'rgba(180, 165, 28, 0.66)', // Open
+                        //'rgba(46, 81, 196, 0.72)', // Delivered
+                        //'rgba(180, 165, 28, 0.66)', // Open
                         //'rgb(175, 34, 100)', // Clicked
                     ],
                     'hoverOffset' => 4
                 ],
             ],
-            'labels' => ['delivered', 'open', 'processed']
+            //'labels' => ['delivered']
+            'labels' => array_keys($smsArray),
         ];
       
 
@@ -105,22 +112,15 @@ class SMSCharts extends ChartWidget
 
     protected function getType(): string
     {
-        return 'doughnut';
+        return 'bar';
     }
 
     protected function getOptions(): RawJs
     {
         return RawJs::make(<<<JS
-        {
-            scales: {
-                x: {
-                    display : false
-                },
-                y: {
-                    display : false
-                }
-            },
-        }
+            {
+                indexAxis: 'x',
+            }
         JS);
     }
 
