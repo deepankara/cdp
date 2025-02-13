@@ -23,10 +23,10 @@ use Symfony\Component\DomCrawler\Crawler;
 |
 */
 
-// Route::get('/', function () {
-//     return redirect()->to('/admin');
-//    return view('welcome');
-// });
+Route::get('/', function () {
+    return redirect()->to('/admin');
+   return view('welcome');
+});
 
 Route::get('/sendEmail', [EmailController::class, 'sendEmail']);
 Route::get('/sendRetargetting', [EmailController::class, 'emailRetargetting']);
