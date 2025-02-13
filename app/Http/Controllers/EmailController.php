@@ -10,6 +10,7 @@ use App\Http\Controllers\BaseController;
 use Illuminate\Support\Facades\Http;
 use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Cache;
+use App\Models\SmsAnalytics;
 use Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Arr;
@@ -56,12 +57,15 @@ class EmailController extends BaseController
             }, $html_content);
 
             $attributes['html_content'] = $customerHtmlContent;
-            $isSendMessage = $this->sendGridEmail($attributes);
+            $isSendMessage = $this->sendTelSpielEmail($attributes,$attributes);
+            // $isSendMessage = $this->sendGridEmail($attributes);
         }
 
         if($requestData['channel'] == 'sms'){
             $template = DB::table('sms_templates')->whereId($requestData['template_id'])->get()->toArray();
             $template = (array) current($template);
+
+            $dltTemplateId = $template['dlt_template_id'];
 
             $html_content = $template['sms'];
             $attributes = $requestData['template_attr'];
@@ -72,7 +76,7 @@ class EmailController extends BaseController
                 return $attributes[$key] ?? $matches[0]; 
             }, $html_content);
             
-            $isSendMessage = $this->sendSms($customerHtmlContent,$requestData['mobile_no'],$requestData['template_id']);
+            $isSendMessage = $this->sendSms($customerHtmlContent,$requestData['mobile_no'],$requestData['template_id'],$dltTemplateId);
         }
 
         if ($requestData['channel'] == 'whatsapp') {
@@ -201,7 +205,6 @@ class EmailController extends BaseController
             }
         }
         $isSendMessage = 200;
-        
         $json['email'] = $requestData['email'];
         $json['mobile_no'] = $requestData['mobile_no'];
         $json['client_id'] = $request->user()->id;
@@ -214,39 +217,68 @@ class EmailController extends BaseController
         return $isSendMessage;
     }
 
-    public static function sendSms($sms,$phoneNumber,$templateId){
+    public static function sendSms($sms,$phoneNumber,$templateId,$dltTemplateId){
         $curl = curl_init();
         $json = [
-            "phone" => str_replace('91','',$phoneNumber),
-            "message"=>$sms
+            "username" => "AuxiloTr",
+            "dest" => str_replace('91','',$phoneNumber),
+            "apikey" => env('TELSPICE_SMS_KEY'),
+            "signature" => "AUXILO",
+            "msgtype" => "PM",
+            "msgtxt" => $sms,
+            "entityid" => env('TELSPICE_SMS_ENTITY_ID'),
+            'templateid' => $dltTemplateId,
+            'custref' => "Test"
         ];
-        $json = json_encode($json);
-
+        $url = "https://api.telsp.in/pushapi/sendbulkmsg?" . http_build_query($json, '', '&', PHP_QUERY_RFC3986);
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://wsnpp7trhj.execute-api.ap-south-1.amazonaws.com/dev/api/sendmessage',
+            CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
             CURLOPT_TIMEOUT => 0,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS =>$json,
-            CURLOPT_HTTPHEADER => array(
-              'Content-Type: application/json'
-            ),
-          ));
+            CURLOPT_CUSTOMREQUEST => 'GET',
+        ));
+
+
+        // $json = [
+        //     "phone" => str_replace('91','',$phoneNumber),
+        //     "message"=>$sms
+        // ];
+        // $json = json_encode($json);
+
+        // curl_setopt_array($curl, array(
+        //     CURLOPT_URL => 'https://wsnpp7trhj.execute-api.ap-south-1.amazonaws.com/dev/api/sendmessage',
+        //     CURLOPT_RETURNTRANSFER => true,
+        //     CURLOPT_ENCODING => '',
+        //     CURLOPT_MAXREDIRS => 10,
+        //     CURLOPT_TIMEOUT => 0,
+        //     CURLOPT_FOLLOWLOCATION => true,
+        //     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        //     CURLOPT_CUSTOMREQUEST => 'POST',
+        //     CURLOPT_POSTFIELDS =>$json,
+        //     CURLOPT_HTTPHEADER => array(
+        //       'Content-Type: application/json'
+        //     ),
+        //   ));
           
         $response = curl_exec($curl);
         $response = json_decode($response,true);
-        if(isset($response['status']) && $response['status']){
+        $response = (array) current($response);
+        if(isset($response['code']) && $response['code'] == 6001){
             $smsAnalytics = [];
             $smsAnalytics['template_id'] = $templateId;
             $smsAnalytics['phone'] = $phoneNumber;
             $smsAnalytics['sms'] = $sms;
+            $smsAnalytics['status'] = "Processed";
+            $smsAnalytics['request_id'] = $response['reqId'];
             $smsAnalytics['created_at'] = Carbon::now();
             DB::table('sms_analytics')->insert($smsAnalytics);
-        }   
+        }else{
+            return $response;
+        } 
         return true;
           
 
@@ -262,6 +294,9 @@ class EmailController extends BaseController
         //     'v' => '1.1',
         //     'format' => 'json'
         // ];
+
+        
+          
      
 
         // curl_setopt_array($curl, [
@@ -279,10 +314,10 @@ class EmailController extends BaseController
         //     ],
         // ]);
 
-        // $response = curl_exec($curl);
+        $response = curl_exec($curl);
+        echo "<pre>";print_r($response);exit;
         curl_close($curl);
         Log::info($response);
-        echo "<pre>";print_r($response);exit;
     }
 
     public static function sendGridEmail($attributes){
@@ -343,6 +378,7 @@ class EmailController extends BaseController
         $response = curl_exec($curl);
         $error_msg = curl_error($curl);
         $http_status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        echo $http_status_code;
         return $http_status_code;
     }
 
@@ -370,25 +406,123 @@ class EmailController extends BaseController
         }else{
             $customers = $customers->get()->toArray();
         }
+        // echo "<pre>";print_r($customers);exit;
         
         $html_content = $campaign['html_content'];
         foreach($customers as $key => $value){
             $convertArray = (array) $value;
             $attributes = json_decode($value->attributes,true);
             $attributes = array_merge($convertArray,$attributes);
-            $unsubscribeUrl = 'https://example.com/unsubscribe?email=' . urlencode($attributes['email']);
-            $attributes['unsubscribe'] = '<a href="' . $unsubscribeUrl . '">Unsubscribe</a>';
+            // $unsubscribeUrl = 'https://example.com/unsubscribe?email=' . urlencode($attributes['email']);
+            // $attributes['unsubscribe'] = '<a href="' . $unsubscribeUrl . '">Unsubscribe</a>';
             $customerHtmlContent = preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($attributes) {
                 $key = $matches[1]; 
                 return $attributes[$key] ?? $matches[0]; 
             }, $html_content);
-            echo "<pre>";print_r($value);
             $value->html_content = $customerHtmlContent;
-            $this->sendSendGridEmail($campaign,$value);
+            $this->sendTelSpielEmail($campaign,$value);
             if($key == 0){
                 DB::table('campaign')->whereId($campaign['campaign_id'])->update(['campaign_executed'=>true]);
             }
         }
+    }
+
+    public function sendTelSpielEmail($campaign,$customers){
+        if(is_object($customers)){
+            $customers = (array) $customers;
+        }
+
+        if(isset($customers['template_id']) && $customers['template_id'] != ''){
+            $campTempId = $customers['template_id'];
+            $campTempkey = 'TEMPLATEID';
+            $dbKey = 'template_id';
+            $type = "TEMPLATE";
+        }else{
+            $campTempId = $campaign['campaign_id'];
+            $campTempkey = 'CAMPAIGNID';
+            $dbKey = 'campaign_id';
+            $type = "CAMPAIGN";
+        }
+
+        $sendGridFromName = env('TELSPIEL_FROM_EMAIL');
+        $telSpielKey = env("TELSPIEL_KEY");
+        $emailPayload = [
+            "apiver" => "1.0",
+            "email" => [
+                "ver" => "1.0",
+                "dlr" => [
+                    "url" => env("TELSPIEL_WEBHOOK_URL")
+                ],
+                "messages" => [
+                    [
+                        "addresses" => [
+                            [
+                                "to" => [
+                                    [
+                                        "emailid" => $customers['email'],
+                                        "name" => $customers['name']
+                                    ]
+                                ],
+                                "subject" => $campaign['email_subject'],
+                                "user_custom_args" =>  [
+                                    $campTempkey => $campTempId,
+                                    "TYPE" => $type
+                                ],
+                            ]
+                        ],
+                        "subject" => $campaign['email_subject'],
+                        "content" => [
+                            [
+                                "type" => "text/html",
+                                "value" => $customers['html_content']
+                            ]
+                        ],
+                        "from" => [
+                            "emailid" => $sendGridFromName,
+                            "name" => $campaign['email_from_name']
+                        ],
+                        "category" => "Test"
+                    ]
+                ]
+            ]
+        ];
+        // echo "<pre>";print_r($emailPayload);exit;
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://api.goinfinito.com/unified/v2/send',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS =>json_encode($emailPayload),
+            CURLOPT_HTTPHEADER => array(
+                'Authorization: Bearer '.$telSpielKey.'',
+                'Content-Type: application/json',
+            ),
+        ));
+
+
+        $response = curl_exec($curl);
+        $response = json_decode($response,true);
+        if(isset($response['statuscode']) && $response['statuscode'] == 200){
+            if(isset($response['messageack']['guids']) && $response['messageack']['guids']){
+                $response = $response['messageack']['guids'];
+                $insertData = [];
+                foreach($response as $key => $value){
+                    $insertData[$key][$dbKey] = $campTempId;
+                    $insertData[$key]['sg_message_id'] = $value['guid'];
+                    $insertData[$key]['event'] = "processed";
+                    $insertData[$key]['email'] = $customers['email'];
+                    $insertData[$key]['indian_time'] = $value['submitdate'];
+                }
+                DB::table('email_analytics')->insert($insertData);
+            }
+        }
+        exit;
     }
 
     public function sendCampSms(Request $request){
@@ -405,7 +539,10 @@ class EmailController extends BaseController
             $customers = $customers->get()->toArray();
         }
 
-        $template = DB::table('sms_templates')->where("id",$campaign['sms_template'])->value('sms');
+        $smsTemplates = DB::table('sms_templates')->where("id",$campaign['sms_template'])->get()->toArray();
+        $smsTemplates = (array) current($smsTemplates);
+        $mainTemplate = $smsTemplates['sms'];
+        $dltTemplateId = $smsTemplates['dlt_template_id'];
 
         $smsVar = [];
         foreach($smsVariables as $key => $value){
@@ -417,48 +554,74 @@ class EmailController extends BaseController
             $attributes = json_decode($customerValue->attributes,true);
             $attributes = array_merge($convertArray,$attributes);
 
+            $template = $mainTemplate;
             foreach ($smsVar as $placeholder => $key) {
                 $value = $whatsapp[$key] ?? $attributes[$key] ?? '';
                 $template = str_replace("{{{$placeholder}}}", $value, $template);
             }
-
-            $curl = curl_init();
             $phoneNumber = $attributes['contact_no'];
             $json = [
-                "phone" => str_replace('91','',$phoneNumber),
-                "message"=>$template
+                "username" => "AuxiloTr",
+                "dest" => str_replace('91','',$phoneNumber),
+                "apikey" => env('TELSPICE_SMS_KEY'),
+                "signature" => "AUXILO",
+                "msgtype" => "PM",
+                "msgtxt" => $template,
+                "entityid" => env('TELSPICE_SMS_ENTITY_ID'),
+                'templateid' => $dltTemplateId,
+                'custref' => "Test"
             ];
-            $json = json_encode($json);
 
+            $url = "https://api.telsp.in/pushapi/sendbulkmsg?" . http_build_query($json, '', '&', PHP_QUERY_RFC3986);
+            $curl = curl_init();
             curl_setopt_array($curl, array(
-                CURLOPT_URL => 'https://wsnpp7trhj.execute-api.ap-south-1.amazonaws.com/dev/api/sendmessage',
+                CURLOPT_URL => $url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_ENCODING => '',
                 CURLOPT_MAXREDIRS => 10,
                 CURLOPT_TIMEOUT => 0,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS =>$json,
-                CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json'
-                ),
+                CURLOPT_CUSTOMREQUEST => 'GET',
             ));
+
+            // $json = [
+            //     "phone" => str_replace('91','',$phoneNumber),
+            //     "message"=>$template
+            // ];
+
+            // $json = json_encode($json);
+
+            // curl_setopt_array($curl, array(
+            //     CURLOPT_URL => 'https://wsnpp7trhj.execute-api.ap-south-1.amazonaws.com/dev/api/sendmessage',
+            //     CURLOPT_RETURNTRANSFER => true,
+            //     CURLOPT_ENCODING => '',
+            //     CURLOPT_MAXREDIRS => 10,
+            //     CURLOPT_TIMEOUT => 0,
+            //     CURLOPT_FOLLOWLOCATION => true,
+            //     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            //     CURLOPT_CUSTOMREQUEST => 'POST',
+            //     CURLOPT_POSTFIELDS =>$json,
+            //     CURLOPT_HTTPHEADER => array(
+            //     'Content-Type: application/json'
+            //     ),
+            // ));
             
             $response = curl_exec($curl);
             $response = json_decode($response,true);
 
-            if(isset($response) && $response['status'] != ''){
-                $smsData = [];
-                $smsData['phone'] = $phoneNumber;
-                $smsData['sms'] = $template;
-                $smsData["created_at"] = Carbon::now();
-                $smsData["campaign_id"] = $campaign['id'];
-                DB::table("sms_analytics")->insert($smsData);
-                // exit;
-            }
-            echo "<pre>";print_r($response);exit;
-
+            if(isset($response['code']) && $response['code'] != ''){
+                $smsAnalytics = [];
+                $smsAnalytics["campaign_id"] = $campaign['id'];
+                $smsAnalytics['phone'] = $phoneNumber;
+                $smsAnalytics['sms'] = $template;
+                $smsAnalytics['status'] = "Processed";
+                $smsAnalytics['request_id'] = $response['reqId'];
+                $smsAnalytics['created_at'] = Carbon::now();
+                DB::table('sms_analytics')->insert($smsAnalytics);
+            }else{
+                return $response;
+            } 
         }
     }
 
@@ -466,7 +629,9 @@ class EmailController extends BaseController
         $campaign = DB::table('campaign')->where('channel',"Whatsapp")->get()->toArray();
         $campaign = (array) current($campaign);
 
-        $customers = DB::table('customers')->where('segment_id',$campaign['include_segment_id']);
+        $customers = DB::table('customers')->where('segment_id',$campaign['include_segment_id'])
+        ->where('email',"hemant.dhivar@auxilo.com")
+        ;
 
         $whatsappVariables = json_decode($campaign['wa_variables'],true);
 
@@ -480,9 +645,10 @@ class EmailController extends BaseController
         $template = (array) current($template);
 
 
-        $component = [];
 
+        
         foreach ($customers as $customerKey => $customerValue) {
+            $component = [];
             $convertArray = (array) $customerValue;
             $attributes = json_decode($customerValue->attributes,true);
             $attributes = array_merge($convertArray,$attributes);
@@ -495,7 +661,7 @@ class EmailController extends BaseController
                 if($template['header_type'] == "VIDEO"){
                     $header['parameters'][0] = [
                         "type" => "video",
-                        "video" => ['link'=>$attributes[$whatsappVariables[0]['value']]]
+                        "video" => ['id'=>2775523425989051]
                     ];
                 }
 
@@ -562,8 +728,6 @@ class EmailController extends BaseController
                     }
                 }
             }
-
-
             $whatsapp = [];
             $whatsapp['messaging_product'] = "whatsapp";
             $whatsapp['to'] = $attributes['contact_no'];
@@ -571,16 +735,13 @@ class EmailController extends BaseController
             $whatsapp['template'] = [];
             $whatsapp['template']['name'] = $template['name'];
             $whatsapp['template']['language'] = [
-                "code" => "en_us"
+                "code" => "en"
             ];
             $whatsapp['template']['components'] = $component;
 
-
-
-
             $curl = curl_init();
             curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://graph.facebook.com/v21.0/105029218931496/messages',
+            CURLOPT_URL => 'https://graph.facebook.com/v21.0/109302878498322/messages',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -591,17 +752,18 @@ class EmailController extends BaseController
             CURLOPT_POSTFIELDS =>json_encode($whatsapp),
             CURLOPT_HTTPHEADER => array(
                 'Content-Type: application/json',
-                'Authorization: Bearer '.env('WHATSAPP_API_TOKEN')
+                'Authorization: Bearer EAAWGi4ndejABO4knzazZB3YhZCtUT3D32lrryRmCsHKY1PsuMzqng3PmEj6ZCHYU5TFWCPF2JfATTcbbyxh6nQLQBYqEvTHPDj7v4ESuYxL9Sr31VuCQVByETMF88TKgnZC54kSrJZCx0Pugc8jUxqkwE7H11sGtY8L9GZBrKsTW38lecCyFAyes84OFNHRu3IcQZDZD'
             ),
             ));
+
 
             $response = curl_exec($curl);
             curl_close($curl);
             $response = json_decode($response,true);
+            echo "<pre>";print_r($response);exit;
             if (isset($response['messages'][0]['id']) && $response['messages'][0]['id'] != '') {
                 $statuses = ["read", "sent", "delivered", "failed"];
                 $whatsappData = [];
-            
                 foreach ($statuses as $status) {
                     $whatsappData[] = [
                         'wa_id' => $response['messages'][0]['id'],
@@ -613,9 +775,6 @@ class EmailController extends BaseController
                 }
                 DB::table("whatsapp_analytics")->insert($whatsappData);
             }
-            echo "<pre>";print_r($response);exit;
-            
-
         }
     }
 
@@ -799,7 +958,7 @@ class EmailController extends BaseController
                 'personalizations' => [
                     [
                         'to' => [
-                            ['email' => $customers->email]
+                            ['email' => "gilchrist.auxilo@gmail.com"]
                         ],
                         'custom_args' => [
                             'campaign_id' => $campaign['campaign_id']
@@ -829,6 +988,7 @@ class EmailController extends BaseController
                 ]
             ];
         }
+        echo "<pre>";print_r($data);
 
         $curl = curl_init();
         curl_setopt_array($curl, array(
@@ -853,10 +1013,22 @@ class EmailController extends BaseController
         return true;
     }
 
+    public function smsWebhook(Request $request){
+        $requestData = $request->all();
+        Log::info($requestData);
+        if(isset($requestData['status']) && $requestData['status'] != ''){
+            $smsData = SmsAnalytics::where('request_id',$requestData['sid'])->first()->replicate();
+            $smsData->status = $requestData['reason'];
+            $smsData->save();
+        }
+        return true;
+    }
+
+
     public function whatsappWebook(Request $request){
         $requestData = $request->all();
-        // echo $requestData['hub_challenge'];exit;
-        Log::info($requestData);
+        echo $requestData['hub_challenge'];exit;
+        Log::info($requestData);exit;
         $statusData = $requestData['entry'][0]['changes'][0]['value']['statuses'][0];
         $whatsapp = [];
         if($statusData['status'] == 'failed'){
@@ -887,13 +1059,56 @@ class EmailController extends BaseController
         // DB::table('whatsapp_analytics')->insert($whatsapp);
     }
 
+    public function telSpielEmailWebhook(Request $request){
+        $requestData = $request->all();
+        Log::info($requestData);
+        $insertData = [];
+        if(isset($requestData['custom_fields']['user_custom_args']['TYPE']) && $requestData['custom_fields']['user_custom_args']['TYPE'] == 'CAMPAIGN'){
+            $insertData['campaign_id'] = $requestData['custom_fields']['user_custom_args']['CAMPAIGNID'];
+        }else{
+            $insertData['template_id'] = $requestData['custom_fields']['user_custom_args']['TEMPLATEID'];
+        }
+        $insertData['email'] = $requestData['email_id'];
+        $insertData['event'] = $requestData['event'];
+        $insertData['sg_message_id'] = $requestData['custom_fields']['guid'];
+        $insertData['indian_time'] = $requestData['timestamp'];
+        $insertData['ip_address'] = (isset($requestData['ip']) && $requestData['ip'] != '') ? $requestData['ip'] : '';
+        
+        if(isset($requestData['useragent']) && $requestData['useragent'] != ''){
+            $insertData['user_agent'] = $requestData['useragent'];
+            $agent = new Agent();
+            $agent->setUserAgent($requestData['useragent']);
+            $device = (isset($requestData['device']) && $requestData['device'] != '') ? $requestData['device'] : '';
+            $platform = $agent->platform();
+            $browser = $agent->browser();
+            $insertData['device'] = $device;
+            $insertData['platform'] = $platform;
+            $insertData['browser'] = $browser;
+        }
+
+        if($requestData['event'] == 'click'){
+            $insertData['click_url'] = (isset($requestData['url']) && $requestData['url'] != '') ? $requestData['url'] : '';
+            $ip = $requestData['ip'];
+            $response = Http::get("http://ipinfo.io/{$ip}/json");
+            if($response->successful()) {
+                $data = $response->json();
+                $insertData['city'] = $data['city'];
+                $insertData['region'] = $data['region'];
+                $insertData['country'] = $data['country'];
+                $insertData['postal'] = $data['postal'];
+            }
+        }
+        DB::table('email_analytics')->insert($insertData);
+    }
+
     public function emailWebhook(Request $request){
         $requestData = $request->all();
-        Log::info(json_encode($request->all()));
+        Log::info($requestData);exit;
+        echo "<pre>";print_r($requestData);exit;
         $insertData = [];
         $tableName = 'email_analytics';
         foreach($requestData as $key => $value){
-            if(isset($value['type']) && $value['type'] == "transactional"){
+            if(isset($value['custom_fields']) && $value['type'] == "transactional"){
                 // $tableName = 'email_analytics_api';
                 $insertData[$key]['template_id'] = $value['template_id'];
 
@@ -1068,5 +1283,9 @@ class EmailController extends BaseController
             // }
         }
         exit;
+    }
+
+    public function telSpiel(Request $request){
+
     }
 }
