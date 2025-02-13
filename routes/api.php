@@ -31,5 +31,7 @@ Route::middleware('auth:api')->group(function () {
 });
 
 Route::post('/email-webhook', [EmailController::class, 'emailWebhook']);
+Route::post('/telSpiel-email-webhook', [EmailController::class, 'telSpielEmailWebhook']);
 Route::any('/whatsapp-webhook', [EmailController::class, 'whatsappWebook']);
+Route::any('/sms-webhook', [EmailController::class, 'smsWebhook']);
 
