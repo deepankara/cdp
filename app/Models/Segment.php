@@ -14,5 +14,7 @@ class Segment extends Model
     protected $fillable = [
         "name",
         "database_type",
+        "reporting_name",
+        "reporting_email",
     ];
 }

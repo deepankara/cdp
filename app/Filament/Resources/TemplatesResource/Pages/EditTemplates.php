@@ -25,7 +25,7 @@ class EditTemplates extends EditRecord
             $customers = Customers::where('segment_id',$this->record['segment_id'])->first()->toArray();
             if(isset($customers['attributes']) && $customers['attributes'] != ''){
                 $attributes = array_keys(json_decode($customers['attributes'],true));
-                array_push($attributes,"name","email","contact_no",'unsubscribe');
+                array_push($attributes,"name","email","contact_no");
                 $customArray = [];
                 foreach($attributes as $key => $value){
                     $customArray[$key]['value'] = '{'.$value.'}';
@@ -36,14 +36,14 @@ class EditTemplates extends EditRecord
         }
     }
 
-    protected function beforeSave(): void
-    {
-        $data = $this->data;
-            if(!str_contains($data['html_content'], '{{unsubscribe}}')) {
-            Notification::make()->title('Please Add Unsubscribe Link')
-                                ->danger()
-                                ->send();
-            $this->halt();
-        }
-    }
+    // protected function beforeSave(): void
+    // {
+    //     $data = $this->data;
+    //     if(!str_contains($data['html_content'], '{{unsubscribe}}')) {
+    //         Notification::make()->title('Please Add Unsubscribe Link')
+    //                             ->danger()
+    //                             ->send();
+    //         $this->halt();
+    //     }
+    // }
 }

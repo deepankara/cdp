@@ -47,8 +47,8 @@ class SegmentResource extends Resource
                     '1' => 'Login',
                     '2' => 'Others',
                 ])->label('Category'),
-                // TextInput::make('reporting_name')->required(),
-                // TextInput::make('reporting_email')->required(),
+                TextInput::make('reporting_name')->required(),
+                TextInput::make('reporting_email')->required(),
             ]);
     }
 

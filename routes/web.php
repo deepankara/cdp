@@ -1,11 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Session;
 use App\Http\Controllers\EmailController;
+use App\Http\Controllers\WhatsappController;
+use App\Http\Controllers\SmsController;
 use Jenssegers\Agent\Agent;
 use Carbon\Carbon;
 use Symfony\Component\BrowserKit\HttpBrowser;
@@ -24,6 +27,13 @@ use Symfony\Component\DomCrawler\Crawler;
 */
 
 Route::get('/', function () {
+    Mail::raw('The Body', function ($message) {
+        $message->to('gilchrist.auxilo@gmail.com')
+                ->subject('The Title');
+    });
+    exit;
+    echo DB::table('jobs')->truncate();
+    echo DB::table('job_batches')->truncate();exit;
     return redirect()->to('/admin');
    return view('welcome');
 });
@@ -31,6 +41,6 @@ Route::get('/', function () {
 Route::get('/sendEmail', [EmailController::class, 'sendEmail']);
 Route::get('/sendRetargetting', [EmailController::class, 'emailRetargetting']);
 Route::get('/sendClickRetargetting', [EmailController::class, 'emailRetargettingOpen']);
-Route::get('/sendWhatsapp', [EmailController::class, 'sendWa']);
-Route::get('/sendSms', [EmailController::class, 'sendCampSms']);
+Route::get('/sendWhatsapp', [WhatsappController::class, 'sendWa']);
+Route::get('/sendSms', [SmsController::class, 'sendCampSms']);
 

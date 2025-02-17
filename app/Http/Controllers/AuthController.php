@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\BaseController as BaseController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
+
 
 class AuthController extends BaseController
 {
@@ -32,6 +34,29 @@ class AuthController extends BaseController
         }
         else {
             return $this->sendError('Unauthorised.', ['error'=>'Unauthorised'],401);
+        }
+    }
+
+    public function getToken(Request $request){
+        if(isset($request->header()['php-auth-user']) && $request->header()['php-auth-user'] != '' && isset($request->header()['php-auth-pw']) && $request->header()['php-auth-pw'] != ''){
+            $email = $request->header()['php-auth-user'];
+            $password = $request->header()['php-auth-pw'][0];
+            if(Auth::attempt(['email' => $email, 'password' => $password])) {
+                $user = Auth::user();
+                $tokenResult = $user->createToken('Personal Access Token');
+                $token = $tokenResult->token;
+                $token->expires_at = Carbon::now()->addWeeks(1);
+                $token->save();
+
+                $data = [
+                    'access_token' => $tokenResult->accessToken, // Acce    ss token value
+                    'token_type' => 'Bearer', // Token type (Bearer for OAuth2)
+                    'expires_at' => Carbon::parse($token->expires_at)->toDateTimeString() 
+                ];
+                return $this->sendResponse($data, 'Token Generated Successfully');
+            }else {
+                return $this->sendError('Unauthorised.', ['error'=>'Unauthorised'],401);
+            }
         }
     }
 }

@@ -174,7 +174,7 @@ class WhatsappTemplateResource extends Resource
                         ->schema([
                             Textarea::make('html_content')
                                 ->required()
-                                ->maxLength(255)
+                                ->maxLength(1024)
                                 ->live()
                                 ->id('html_content')
                                 ->columnSpanFull()
