@@ -43,6 +43,7 @@ class ChartsStats extends ChartWidget
             $whatsappData->push(
                 WhatsappAnalytics::whereMonth('created_at', $month->month)
                     ->whereYear('created_at', $month->year)
+                    ->whereNotNull('time')
                     ->distinct('wa_id')
                     ->count('wa_id')
             );

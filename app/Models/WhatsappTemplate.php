@@ -26,11 +26,17 @@ class WhatsappTemplate extends Model
         "media_id",
         "upload_id",
         "buttons",
+        "template_id",
+        "template_status",
+        "add_security_recommendation",
+        "code_expiry",
+        "copy_code_button_text"
     ];
 
     protected $casts = [
         "header_variables_sample" => 'array',
         "body_variables_sample" => 'array',
+        'add_security_recommendation' => 'boolean',
         "buttons" => 'array'
     ];
 

@@ -17,7 +17,8 @@ if(isset(Session::get('email_analytics')['campaign_id']) && Session::get('email_
             <div>
                 <span class="text-sm font-medium text-black-500 dark:text-black-400">Processed</span>
                 <div class="text-3xl font-semibold tracking-tight text-black-950 dark:text-white">
-                    {{$result["processed"]}}
+                    {{isset($result['processed']) && $result['processed'] != '' ? $result['processed'] : 0}}
+
                 </div>
             </div>
             <img src="https://cdn-icons-png.flaticon.com/512/1157/1157026.png" alt="Processed" class="w-8 h-8">
@@ -30,7 +31,7 @@ if(isset(Session::get('email_analytics')['campaign_id']) && Session::get('email_
             <div>
                 <span class="text-sm font-medium text-black-500 dark:text-black-400">Delivered</span>
                 <div class="text-3xl font-semibold tracking-tight text-black-950 dark:text-white">
-                    {{$result["delivered"]}}
+                    {{isset($result['delivered']) && $result['delivered'] != '' ? $result['delivered'] : 0}}
                 </div>
             </div>
             <img src="https://cdn-icons-png.flaticon.com/512/8905/8905083.png" alt="Delivered" class="w-8 h-8">

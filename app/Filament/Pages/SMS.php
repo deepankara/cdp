@@ -9,13 +9,15 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Filament\Tables\Concerns\InteractsWithTable;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+
 
 
 
 
 class SMS extends Page implements HasTable
 {
-    use InteractsWithTable;
+    use InteractsWithTable,HasPageShield;
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left';
 
     protected static ?string $navigationGroup = 'Analytics';
@@ -37,7 +39,7 @@ class SMS extends Page implements HasTable
             // ->where('phone', Session::get('whatsapp_no'))
             ->leftjoin('campaign','campaign.id','sms_analytics.campaign_id'))
             ->columns([
-                TextColumn::make('phone'),
+                TextColumn::make('phone')->searchable(),
                 TextColumn::make('sms')
                 ->limit(50)
                 ->tooltip(function (TextColumn $column): ?string {
@@ -50,7 +52,7 @@ class SMS extends Page implements HasTable
                     // Only render the tooltip if the column content exceeds the length limit.
                     return $state;
                 }),
-                TextColumn::make('created_at')->searchable()->sortable(),
+                TextColumn::make('created_at')->sortable(),
             ])
             ->defaultGroup('campaign')
 

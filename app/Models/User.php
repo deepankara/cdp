@@ -11,11 +11,15 @@ use Filament\Models\Contracts\FilamentUser;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Passport\HasApiTokens;
 use BezhanSalleh\FilamentShield\Traits\HasPanelShield;
+use Solutionforest\FilamentEmail2fa\Interfaces\RequireTwoFALogin;
+use Solutionforest\FilamentEmail2fa\Trait\HasTwoFALogin;
+use NotificationChannels\WebPush\HasPushSubscriptions;
+ 
 
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser,RequireTwoFALogin
 {
-    use HasApiTokens, HasFactory, Notifiable,HasRoles,HasPanelShield;
+    use HasApiTokens, HasFactory, Notifiable,HasRoles,HasPanelShield,HasTwoFALogin,HasPushSubscriptions;
 
     /**
      * The attributes that are mass assignable.
@@ -26,8 +30,13 @@ class User extends Authenticatable implements FilamentUser
         'name',
         'email',
         'password',
+        'role_id',
+        'email_scopes',
+        'whatsapp_scopes',
+        'sms_scopes',
     ];
 
+ 
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -46,5 +55,8 @@ class User extends Authenticatable implements FilamentUser
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'email_scopes' => 'array',
+        'whatsapp_scopes' => 'array',
+        'sms_scopes' => 'array',
     ];
 }

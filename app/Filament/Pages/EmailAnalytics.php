@@ -27,10 +27,12 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Illuminate\Contracts\Support\Htmlable;
 use Filament\Notifications\Notification;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+
 
 class EmailAnalytics extends Page implements HasTable,HasForms
 {
-    use InteractsWithTable,InteractsWithForms ;
+    use InteractsWithTable,InteractsWithForms,HasPageShield ;
 
     public ?array $data = [];
 

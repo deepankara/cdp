@@ -12,6 +12,7 @@ class SmsTemplate extends Model
 
     protected $fillable = [
         "name",
-        "sms"
+        "sms",
+        "dlt_template_id"
     ];
 }

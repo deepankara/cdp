@@ -41,14 +41,14 @@ class SegmentResource extends Resource
     {
         return $form
             ->schema([
-                TextInput::make('name')->required(),
+                TextInput::make('name')->required()->rules(['max:255', 'regex:/^[A-Za-z0-9\s]+$/']),
                 Select::make('database_type')
                 ->options([
                     '1' => 'Login',
                     '2' => 'Others',
-                ])->label('Category'),
-                TextInput::make('reporting_name')->required(),
-                TextInput::make('reporting_email')->required(),
+                ])->label('Category')->required(),
+                TextInput::make('reporting_name')->required()->rules(['max:255', 'regex:/^[A-Za-z0-9\s]+$/']),
+                TextInput::make('reporting_email')->required()->email(),
             ]);
     }
 
@@ -72,20 +72,26 @@ class SegmentResource extends Resource
 
                 ImportAction::make('importProducts')->hidden(fn ($record) => $record->database_type !== 2)
                 ->modalDescription(new HtmlString(
-                    ' <a href="https://drive.usercontent.google.com/download?id=1zO8ekHWx9U7mrbx_0Hoxxu6od7uxJqWw&export=download&authuser=0" class="text-blue-600 underline" download>Download Sample Books CSV</a>'
+                    '<a href="' . asset('sample.csv') . '" class="text-blue-600 underline" download>Download Sample CSV</a>'
                 ))
                 ->before(function (ImportAction $action,Segment $record) {
                     Session::put('segment_id',$record->id);
                 })
+                ->options(function (ImportAction $action, Segment $record) {
+                    return [
+                        'segment_id' => $record->id,
+                    ];
+                })
                 ->importer(CustomersImporter::class),
 
-                Action::make('analytics')->url(fn (Segment $record): string => route('filament.admin.resources.segments.emaildump', $record))
-                ->openUrlInNewTab()
+                // Action::make('analytics')->url(fn (Segment $record): string => route('filament.admin.resources.segments.emaildump', $record))
+                // ->openUrlInNewTab()
                 // Tables\Actions\DeleteAction::make(),
             ])
+            ->defaultSort('id', 'desc')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    // Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }

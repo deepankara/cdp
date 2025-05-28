@@ -21,7 +21,9 @@ class DashCharts extends ChartWidget
     {
         
         $email = DB::table('email_analytics')->distinct('sg_message_id')->count();
-        $whatsapp = DB::table('whatsapp_analytics')->distinct('wa_id')->count();
+        $whatsapp = DB::table('whatsapp_analytics')->distinct('wa_id')
+                    ->whereNotNull('time')
+                    ->count();
         $sms = DB::table('sms_analytics')->count();
 
         $labels = ['Email', 'WhatsApp', 'SMS'];

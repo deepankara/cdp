@@ -21,7 +21,10 @@ class WhatsappCharts extends ChartWidget
     {
         
         $whatsapp = DB::table('whatsapp_analytics')->select('status', DB::raw('count(*) as status_count'))
-        ->groupBy('status')->get()->toArray();
+                                                    ->whereNotNull('time')
+                                                    ->whereNot('status',"sent")
+                                                    ->orderBy('status')
+                                                    ->groupBy('status')->get()->toArray();
 
         $keyValueArray = [];
         
@@ -50,15 +53,15 @@ class WhatsappCharts extends ChartWidget
                     'label' => 'Whatsapp Summary',
                     'data' => array_values($whatsapp),
                     'backgroundColor' => [
-                        'rgba(126, 84, 5, 0.53)', // Processed
-                        'rgba(6, 97, 6, 0.34)', // Delivered
-                        'rgba(80, 9, 15, 0.81)', // Open
-                        //'rgb(175, 34, 100)', // Clicked
+                        'rgba(76, 175, 80, 0.75)',   // Delivered – Elegant Green
+                        'rgba(244, 67, 54, 0.75)',   // Failed – Clean Red
+                        'rgba(30, 136, 229, 0.8)',   // Read – Crisp Blue
                     ],
+
                     'hoverOffset' => 4
                 ],
             ],
-            'labels' => ['sent', 'delivered', 'read']
+            'labels' => ['delivered', 'failed', 'read']
         ];
       
 

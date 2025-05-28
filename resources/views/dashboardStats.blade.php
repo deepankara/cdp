@@ -193,11 +193,13 @@
     */ ?>
 
 <br>
-<div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-3">
+<div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-2">
 @livewire(\App\Livewire\ChartsStats::class)
 @livewire(\App\Livewire\DashCharts::class)
+<?php /*
 @if(isset($result['processed']) && $result['processed'] != 0)
 @livewire(\App\Livewire\Charts::class)
 @endif
+ */ ?>
 </div>
 </x-filament-panels::page>

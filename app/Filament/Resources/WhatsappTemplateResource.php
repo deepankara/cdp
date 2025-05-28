@@ -30,6 +30,8 @@ use Filament\Forms\Components\Repeater;
 use Illuminate\Support\Arr;
 use TangoDevIt\FilamentEmojiPicker\EmojiPickerAction;
 use Filament\Forms\Components\ViewField;
+use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\Wizard;
 use Filament\Forms\Components\FileUpload;
 
 class WhatsappTemplateResource extends Resource
@@ -53,6 +55,7 @@ class WhatsappTemplateResource extends Resource
     {
         return $form
             ->schema([
+                
                 TextInput::make('name')
                     ->maxLength(255)
                     ->default(null)
@@ -73,20 +76,37 @@ class WhatsappTemplateResource extends Resource
                         'UTILITY' => 'UTILITY',
                     ])->label('Select Category')->required()->live()->native(false),
 
-                Select::make('utility_type')
-                    ->options([
-                        'NONE' => 'NONE',
-                        'PAYMENT' => 'PAYMENT',
-                    ])->label('Select Category')
-                    ->required()->native(false)
-                    ->live()
-                    ->hidden(function (Get $get) {
-                        if($get('category') == "UTILITY"){
-                            return false;
-                        }else{
-                            return true;
-                        }
-                    }),
+                
+                
+
+                // Select::make('utility_type')
+                //     ->options([
+                //         'NONE' => 'NONE',
+                //         'PAYMENT' => 'PAYMENT',
+                //     ])->label('Select Category')
+                //     ->required()->native(false)
+                //     ->live()
+                //     ->hidden(function (Get $get) {
+                //         if($get('category') == "UTILITY"){
+                //             return false;
+                //         }else{
+                //             return true;
+                //         }
+                //     }),
+                Section::make('Authentication')
+                ->description("Content for authentication message templates can't be edited. You can add additional content from the options below.")
+                ->schema([
+                    Checkbox::make('add_security_recommendation')->inline()->required(),
+                    TextInput::make('code_expiry')->numeric()->required(),
+                    TextInput::make('copy_code_button_text')->maxLength(25)->required(),
+
+                ])->hidden(function (Get $get) {
+                    if($get('category') == "AUTHENTICATION"){
+                        return false;
+                    }else{
+                        return true;
+                    }
+                }),
 
                 
                 Section::make('Content')
@@ -96,6 +116,7 @@ class WhatsappTemplateResource extends Resource
                         ->schema([
                             Select::make('header_type')
                             ->options([
+                                'NONE' => 'NONE',
                                 'TEXT' => 'TEXT',
                                 'IMAGE' => 'IMAGE',
                                 'VIDEO' => 'VIDEO',
@@ -117,22 +138,28 @@ class WhatsappTemplateResource extends Resource
                                 ->columnSpanFull()
                                 ->directory('whatsapp_template')
                                 ->preserveFilenames()
-                                ->openable()
+                                // ->openable()
+                                ->maxSize(5000)
                                 ->hidden(function (Get $get) {
                                     if($get('header_type') == "DOCUMENT" || $get('header_type') == "VIDEO"){
                                         return false;
                                     }else{
                                         return true;
                                     }
+                                })
+                                ->acceptedFileTypes(function (Get $get){
+                                    if($get('header_type') == "DOCUMENT"){
+                                        return ['application/pdf'];
+                                    }else{
+                                        return ['video/mp4'];
+                                    }
                                 }),
                                 // ->hidden(fn (Get $get) => $get('header_type') !== 'DOCUMENT'),
-                                // ->acceptedFileTypes(['application/pdf']),
                                 
                             TextInput::make('header_name')
-                                ->maxLength(255)
+                                ->maxLength(60)
                                 ->default(null)
                                 ->live()
-                                // ->length(60)
                                 ->afterStateUpdated(function (?string $state,Set $set,Get $get) {
                                     $array = [];
                                     $array["{{1}}"] = "";
@@ -226,6 +253,18 @@ class WhatsappTemplateResource extends Resource
 
                         ]),
 
+                        Placeholder::make('Marketing opt out button')
+                    ->columnSpanFull()
+                    ->hidden(function (Get $get, Set $set,?string $state) {
+                        if($get('category') == "MARKETING"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    })
+                    ->content("Add a 'Quick Reply' button labeled 'STOP' to allow users to opt out of marketing messages."),
+            
+
                         Fieldset::make('Button (Optional)')
     ->schema([
         Repeater::make('buttons')
@@ -274,8 +313,8 @@ class WhatsappTemplateResource extends Resource
                         // No disabling for other options
                         return false;
                     })
-                    ->label('Button Option')
-                    ->required(),
+                    ->label('Button Option'),
+                    // ->required(),
 
                     TextInput::make('button_text')->hidden(function (Get $get) {
                         if($get('option') == "COPY_CODE"){
@@ -300,20 +339,28 @@ class WhatsappTemplateResource extends Resource
                   
 
                     TextInput::make('url')->url()->hidden(function (Get $get) {
-                        if($get('option') == "URL"){
+                        if($get('option') == "URL" && $get('url_type') == "static"){
                             return false;
                         }else{
                             return true;
                         }
                     }),
 
-                    TextInput::make('url_example')->url()->hidden(function (Get $get) {
+                    TextInput::make('dynamic_url')->hidden(function (Get $get) {
                         if($get('url_type') == "dynamic"){
                             return false;
                         }else{
                             return true;
                         }
-                    })->helperText('Please Provide a containing varibale.As it may lead to rejectetion of the template'),
+                    })->helperText('Adding a variable creates a personalised link for the customer to view their info. Only one variable can be added to the end of a URL.(Example-: https://www.auxilo.com/about-auxilo/{{1}})'),
+
+                    TextInput::make('dynamic_url_example')->url()->hidden(function (Get $get) {
+                        if($get('url_type') == "dynamic"){
+                            return false;
+                        }else{
+                            return true;
+                        }
+                    })->helperText('To help us review your message template, please add an example of the entire website URL including {{1}}. Do not use real customer information.'),
 
 
                     TextInput::make('phone_number')->hidden(function (Get $get) {
@@ -338,7 +385,13 @@ class WhatsappTemplateResource extends Resource
 
                         
 
-                    ])
+                    ])->hidden(function (Get $get) {
+                        if($get('category') == "AUTHENTICATION"){
+                            return true;
+                        }else{
+                            return false;
+                        }
+                    })
 
             ]);
     }
@@ -352,6 +405,7 @@ class WhatsappTemplateResource extends Resource
                 Tables\Columns\TextColumn::make('language')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('category'),
+                Tables\Columns\TextColumn::make('status'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -365,11 +419,11 @@ class WhatsappTemplateResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                // Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    // Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }
@@ -386,7 +440,7 @@ class WhatsappTemplateResource extends Resource
         return [
             'index' => Pages\ListWhatsappTemplates::route('/'),
             'create' => Pages\CreateWhatsappTemplate::route('/create'),
-            'edit' => Pages\EditWhatsappTemplate::route('/{record}/edit'),
+            // 'edit' => Pages\EditWhatsappTemplate::route('/{record}/edit'),
         ];
     }
 }

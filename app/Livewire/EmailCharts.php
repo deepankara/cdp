@@ -23,8 +23,12 @@ class EmailCharts extends ChartWidget
         $email = DB::table('email_analytics')
         ->select('event', DB::raw('COUNT(DISTINCT sg_message_id) as user_count'))
         ->groupBy('event')
+        ->orderBy('event')
         ->pluck('user_count', 'event')->toArray();
 
+        if(isset($email['invalid']) && $email['invalid'] != ''){
+            unset($email['invalid']);
+        }
 
         // $datasets = collect($data)->map(fn($value, $label) => [
         //     'label' => $label,
@@ -37,23 +41,28 @@ class EmailCharts extends ChartWidget
         //     },
         //     ])->values()->toArray();
         
-        //echo "<pre>Email: "; print_r($email); echo "</pre>"; die;
 
         return [
             'datasets' => [
                 [
                     'label' => 'Email Summary',
                     'data' => array_values($email),
-                    'backgroundColor' => [
-                        'rgba(199, 75, 137, 0.92)', // Processed
-                        'rgba(46, 81, 196, 0.72)', // Delivered
-                        'rgba(180, 165, 28, 0.66)', // Open
-                        //'rgb(175, 34, 100)', // Clicked
-                    ],
+                    // 'backgroundColor' => [
+                    //     'rgb(175, 34, 100)', // Clicked
+                    //     'rgba(46, 81, 196, 0.72)', // Delivered
+                    //     'rgba(180, 165, 28, 0.66)', // Open
+                    //     'rgba(199, 75, 137, 0.92)', // Processed
+                    // ],
+                 'backgroundColor' => [
+                     'rgba(103, 58, 183, 0.8)',    // Clicked – Professional Blue (action)
+                     'rgba(76, 175, 80, 0.8)',     // Delivered – Soft Green (success)
+                     'rgba(255, 193, 7, 0.8)',     // Open – Amber (attention)
+                    'rgba(158, 158, 158, 0.8)',   // Processed – Neutral Gray (background)
+                ],
                     'hoverOffset' => 4
                 ],
             ],
-            'labels' => ['delivered', 'open', 'processed']
+            'labels' => ['click', 'delivered', 'open',"processed"]
         ];
       
 

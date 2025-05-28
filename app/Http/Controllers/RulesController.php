@@ -152,6 +152,6 @@ class RulesController extends BaseController
                 }
             });
         }
-        return $customers->get()->toArray();
+        return $customers;
     }
 }

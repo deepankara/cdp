@@ -32,12 +32,14 @@ use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Illuminate\Contracts\Support\Htmlable;
 use Filament\Notifications\Notification;
 use Filament\Forms\Components\TextInput;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+
 // use Filament\Tables\Filters\SelectFilter;
 use Carbon\Carbon;
 
 class UserAnalytics extends Page implements HasTable,HasForms
 {
-    use InteractsWithTable,InteractsWithForms ;
+    use InteractsWithTable,InteractsWithForms,HasPageShield ;
     public ?array $data = [];
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
@@ -161,6 +163,7 @@ class UserAnalytics extends Page implements HasTable,HasForms
             Select::make('email_id')
                 ->options(Customers::all()->pluck('email','email'))->native(false)
                 ->label('Users')
+                ->searchable()
                 ->required()
                 ,
             ])->statePath('data');

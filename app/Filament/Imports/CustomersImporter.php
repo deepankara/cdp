@@ -24,10 +24,10 @@ class CustomersImporter extends Importer
     {
         return [
             ImportColumn::make('name')
-                ->rules(['max:255']),
+            ->rules(['max:255', 'regex:/^[A-Za-z\s]+$/'])->requiredMapping(),
             ImportColumn::make('email')
-                ->rules(['email', 'max:255']),
-            ImportColumn::make('contact_no')->label('Contact Number'),
+            ->rules(['email', 'max:255'])->requiredMapping(),
+            ImportColumn::make('contact_no')->rules(['regex:/^(\+?\d{1,4})?\d{7,15}$/'])->label('Contact Number')->requiredMapping(),
             // ImportColumn::make('attributes'),
         ];
     }
@@ -51,6 +51,21 @@ class CustomersImporter extends Importer
         }
 
         return $body;
+    }
+
+    public function saveRecord(): void
+    {
+        $data = $this->data;
+        unset($data['name']);
+        unset($data['email']);
+        $this->record->attributes = json_encode($data); 
+        $this->record->segment_id = $this->options['segment_id'];
+        $checkCount = DB::table('customers')->where('segment_id',$this->record->segment_id)->where('contact_no',$this->record->contact_no)->count();
+        
+        unset($data['contact_no']);
+        if($checkCount < 1){
+            $this->record->save();
+        }
     }
 
     // public function saveRecord(): void

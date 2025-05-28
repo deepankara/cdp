@@ -19,6 +19,7 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Support\Assets\Js;
 use Filament\Support\Facades\FilamentAsset;
+use Solutionforest\FilamentEmail2fa\FilamentEmail2faPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -55,9 +56,12 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->plugins([
                 \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
+                FilamentEmail2faPlugin::make()
             ])
             ->favicon("https://www.auxilo.com/assets/images/Auxilo-logo-horizontal.svg")
             ->databaseNotifications()
+            ->brandLogo(asset('DICE-color.jpg'))
+            ->brandLogoHeight('4rem')
             ->authMiddleware([
                 Authenticate::class,
             ]);

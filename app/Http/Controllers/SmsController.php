@@ -16,22 +16,33 @@ use App\Models\SmsAnalytics;
 use Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Arr;
+use App\Jobs\SmsWebhook;
+
 
 class SmsController extends BaseController
 {
     public static function sendSms($sms,$phoneNumber,$templateId,$dltTemplateId){
+        if($dltTemplateId == "1607100000000073661"){
+            $userName = "AuxiloOTP";
+            $apiKey = env('TELSPICE_SMS_OTP_KEY');
+        }else{
+            $userName = "AuxiloTr";
+            $apiKey = env('TELSPICE_SMS_KEY');
+        }
         $curl = curl_init();
         $json = [
-            "username" => "AuxiloTr",
+            "username" => $userName,
             "dest" => str_replace('91','',$phoneNumber),
-            "apikey" => env('TELSPICE_SMS_KEY'),
+            "apikey" => $apiKey,
             "signature" => "AUXILO",
             "msgtype" => "PM",
             "msgtxt" => $sms,
             "entityid" => env('TELSPICE_SMS_ENTITY_ID'),
             'templateid' => $dltTemplateId,
-            'custref' => "Test"
+            'custref' => "TEST"
         ];
+
+
         $url = "https://api.telsp.in/pushapi/sendbulkmsg?" . http_build_query($json, '', '&', PHP_QUERY_RFC3986);
         curl_setopt_array($curl, array(
             CURLOPT_URL => $url,
@@ -46,6 +57,7 @@ class SmsController extends BaseController
           
         $response = curl_exec($curl);
         $response = json_decode($response,true);
+        // echo "<pre>";print_r($sms);exit;
         $response = (array) current($response);
         if(isset($response['code']) && $response['code'] == 6001){
             $smsAnalytics = [];
@@ -57,8 +69,9 @@ class SmsController extends BaseController
             $smsAnalytics['created_at'] = Carbon::now();
             return DB::table('sms_analytics')->insert($smsAnalytics);
         }else{
-            return $response;
+            return false;
         } 
+
           
         // $json = [
         //     "phone" => str_replace('91','',$phoneNumber),
@@ -193,31 +206,28 @@ class SmsController extends BaseController
             // ));
             
             $response = curl_exec($curl);
-            $response = json_decode($response,true);
+            $responses = json_decode($response,true);
+            foreach($responses as $response){
+                if(isset($response['code']) && $response['code'] != ''){
+                    $smsAnalytics = [];
+                    $smsAnalytics["campaign_id"] = $campaign['id'];
+                    $smsAnalytics['phone'] = $phoneNumber;
+                    $smsAnalytics['sms'] = $template;
+                    $smsAnalytics['status'] = "Processed";
+                    $smsAnalytics['request_id'] = $response['reqId'];
+                    $smsAnalytics['created_at'] = Carbon::now();
+                    DB::table('sms_analytics')->insert($smsAnalytics);
+                }
+            }
+            echo "<pre>";print_r($response);exit;
 
-            if(isset($response['code']) && $response['code'] != ''){
-                $smsAnalytics = [];
-                $smsAnalytics["campaign_id"] = $campaign['id'];
-                $smsAnalytics['phone'] = $phoneNumber;
-                $smsAnalytics['sms'] = $template;
-                $smsAnalytics['status'] = "Processed";
-                $smsAnalytics['request_id'] = $response['reqId'];
-                $smsAnalytics['created_at'] = Carbon::now();
-                DB::table('sms_analytics')->insert($smsAnalytics);
-            }else{
-                return $response;
-            } 
         }
     }
 
     public function smsWebhook(Request $request){
         $requestData = $request->all();
         Log::info($requestData);
-        if(isset($requestData['status']) && $requestData['status'] != ''){
-            $smsData = SmsAnalytics::where('request_id',$requestData['sid'])->first()->replicate();
-            $smsData->status = $requestData['reason'];
-            $smsData->save();
-        }
-        return true;
+        SmsWebhook::dispatch($requestData);
+        return response()->json(['message' => 'Successfully!']);
     }
 }

@@ -92,7 +92,7 @@ class RulesResource extends Resource
                                 $data[$value] = $value;
                             }
                             return $data;
-                        })->native(false),
+                        })->live()->native(false),
 
                         Select::make('options')
                         ->options(function (Get $get) {

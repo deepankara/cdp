@@ -43,6 +43,11 @@ class SmsTemplateResource extends Resource
                     ->maxLength(2000)
                     ->columnSpanFull()
                     ->default(null),
+
+                Forms\Components\TextInput::make('dlt_template_id')
+                    ->maxLength(2000)
+                    ->columnSpanFull()
+                    ->default(null),
             ]);
     }
 

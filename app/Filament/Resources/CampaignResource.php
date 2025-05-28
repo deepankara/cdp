@@ -104,7 +104,7 @@ class CampaignResource extends Resource
                     }),
 
                 Forms\Components\Select::make('whatsapp_template')
-                    ->options(WhatsappTemplate::all()->pluck('name','id'))->native(false)
+                    ->options(WhatsappTemplate::where('status',"APPROVED")->pluck('name','id'))->native(false)
                     ->label('Whatsapp Tempalte')
                     ->live()
                     ->hidden(function (Get $get){
@@ -150,7 +150,7 @@ class CampaignResource extends Resource
                         $buttons = $whatsapp['buttons'];
                         if(count($buttons) >= 1){
                             foreach($buttons as $Key => $value){
-                                if($value['option'] == "URL" || $value["option"] == "COPY_CODE"){
+                                if(($value['option'] == "URL" && $value['url_type'] == "dynamic") || $value["option"] == "COPY_CODE"){
                                     $body = [];
                                     $body["name"] = $value['option'];
                                     $body["type"] = "button";
@@ -317,6 +317,7 @@ class CampaignResource extends Resource
                         ->minDate(now()) // Restrict to today and future dates
                         ->seconds(false)
                         ->native(false)
+                        ->timezone('Asia/Kolkata')
                         ->required(), 
 
                     // Section::make('Retargetting')
@@ -357,12 +358,12 @@ class CampaignResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                ActionGroup::make([
-                    Action::make('analytics')->url(fn (Campaign $record): string => route('filament.admin.resources.campaigns.analytics', $record))
-                    ->openUrlInNewTab()
-                ])->link()->label('Analytics')->hidden(function ($record) {
-                    return !$record->campaign_executed;
-                }),
+                // ActionGroup::make([
+                //     Action::make('analytics')->url(fn (Campaign $record): string => route('filament.admin.resources.campaigns.analytics', $record))
+                //     ->openUrlInNewTab()
+                // ])->link()->label('Analytics')->hidden(function ($record) {
+                //     return !$record->campaign_executed;
+                // }),
                 // ReplicateAction::make()->excludeAttributes(['name','schedule']);
             ])
             ->bulkActions([

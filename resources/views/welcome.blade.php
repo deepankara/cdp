@@ -129,5 +129,29 @@
                 </div>
             </div>
         </div>
+        <script>
+            navigator.serviceWorker.register('/sw.js');
+            
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                navigator.serviceWorker.ready.then(reg => {
+                  reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: 'BC0-f6nh0zRaH51_iWeuZ_OzKqkN7mMQECB9eXhRdQqtEC-ZfaV1h2q2ZYdZ2UnesMzA06tt5wGb9tj-9nhBQWo' // from Laravel
+                  }).then(subscription => {
+                    console.log(subscription);
+                    // Send subscription to Laravel
+                    // fetch('https://your-laravel-app.com/api/save-subscription', {
+                    //   method: 'POST',
+                    //   headers: {
+                    //     'Content-Type': 'application/json'
+                    //   },
+                    //   body: JSON.stringify(subscription)
+                    // });
+                  });
+                });
+              }
+            });
+            </script>
     </body>
 </html>

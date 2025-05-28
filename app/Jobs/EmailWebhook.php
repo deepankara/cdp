@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EmailWebhook implements ShouldQueue
 {
@@ -31,8 +33,15 @@ class EmailWebhook implements ShouldQueue
     public function handle(): void
     {
         $requestData = $this->data;
+        if(isset($requestData[0]) && $requestData[0] != ''){
+            $requestData = json_decode($requestData[0], true);
+        }
+        Log::info($requestData);
         if(isset($requestData['custom_fields']['user_custom_args']['TYPE']) && $requestData['custom_fields']['user_custom_args']['TYPE'] == 'CAMPAIGN'){
             $insertData['campaign_id'] = $requestData['custom_fields']['user_custom_args']['CAMPAIGNID'];
+            if(isset($requestData['custom_fields']['user_custom_args']['retarget_campaign_id']) && $requestData['custom_fields']['user_custom_args']['retarget_campaign_id'] != ''){
+                $insertData['retarget_campaign_id'] = $requestData['custom_fields']['user_custom_args']['retarget_campaign_id'];
+            }
         }else{
             $insertData['template_id'] = $requestData['custom_fields']['user_custom_args']['TEMPLATEID'];
         }
@@ -65,6 +74,18 @@ class EmailWebhook implements ShouldQueue
                 $insertData['country'] = $data['country'];
                 $insertData['postal'] = $data['postal'];
             }
+        }
+
+        if($requestData['event'] == 'unsubscribe'){
+            $unsub = [];
+            if(isset($requestData['custom_fields']['user_custom_args']['TYPE']) && $requestData['custom_fields']['user_custom_args']['TYPE'] == 'CAMPAIGN'){
+                $unsub['campaign_id'] = $requestData['custom_fields']['user_custom_args']['CAMPAIGNID'];
+            }else{
+                $unsub['template_id'] = $requestData['custom_fields']['user_custom_args']['TEMPLATEID'];
+            }
+            $unsub['email_id'] = $insertData['email'];
+            $unsub ['created_at']= Carbon::now();
+            DB::table('email_unsubscribe')->insert($unsub);
         }
         DB::table('email_analytics')->insert($insertData);
     }

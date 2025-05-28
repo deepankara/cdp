@@ -16,7 +16,12 @@ use App\Models\SmsAnalytics;
 use Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+use Session;
 use App\Jobs\EmailWebhook;
+use App\Jobs\AmazonSesEmailWebhook;
+use Illuminate\Support\Facades\Mail;
+
 
 
 class EmailController extends BaseController
@@ -42,15 +47,16 @@ class EmailController extends BaseController
         $customers = DB::table('customers')->where('segment_id',$campaign['include_segment_id']);
         if(isset($campaign['rule_id']) && $campaign['rule_id'] != '') {
             $customers = RulesController::rulesSync($campaign['rule_id'],$customers);
-        }else{
-            $customers = $customers->get()->toArray();
         }
-    
+        
+        $customers = $customers->select('customers.*','email_unsubscribe.email_id')->leftJoin('email_unsubscribe','customers.email', '=','email_unsubscribe.email_id')
+                                ->whereNull('email_unsubscribe.email_id');
+        
+        $customers = $customers->get()->toArray();
         
         $html_content = $campaign['html_content'];
         foreach($customers as $key => $value){
             $emailArray = $this->validateEmail($value->email,$campaign['include_segment_id']);
-            echo "<pre>";print_r($emailArray);exit;
 
             $convertArray = (array) $value;
             $attributes = json_decode($value->attributes,true);
@@ -62,7 +68,6 @@ class EmailController extends BaseController
                 return $attributes[$key] ?? $matches[0]; 
             }, $html_content);
             $value->html_content = $customerHtmlContent;
-
             $this->sendTelSpielEmail($campaign,$value);
             if($key == 0){
                 DB::table('campaign')->whereId($campaign['campaign_id'])->update(['campaign_executed'=>true]);
@@ -70,8 +75,152 @@ class EmailController extends BaseController
         }
     }
 
-    public function validateEmail($email,$segmentId){
+    // public static function sendAmazonSes($campaign,$customers){
+    //     if(is_object($customers)){
+    //         $customers = (array) $customers;
+    //     }
+
+    //     if(isset($customers['template_id']) && $customers['template_id'] != ''){
+    //         $campTempId = $customers['template_id'];
+    //         $campTempkey = 'TEMPLATEID';
+    //         $dbKey = 'template_id';
+    //         $type = "TEMPLATE";
+    //     }else{
+    //         $campTempId = $campaign['campaign_id'];
+    //         $campTempkey = 'CAMPAIGNID';
+    //         $dbKey = 'campaign_id';
+    //         $type = "CAMPAIGN";
+    //     }
+    //     $strRandom = Str::random(10);
+    //     $fromEmailAddress = env("MAIL_FROM_ADDRESS");
+
+    //     $mail = Mail::html($customers['html_content'], function ($message) use ($fromEmailAddress,$campaign,$customers,$campTempkey,$campTempId,$strRandom) {
+    //         $message->from($fromEmailAddress, $campaign['email_from_name'])
+    //         ->to($customers['email'], $customers['name'])
+    //         ->subject($campaign['email_subject'])
+    //         ->getHeaders()
+    //         ->addTextHeader('x-ses-configuration-set', 'DICP-SES2SNS-EVENT-CONFIG-SET')
+    //         ->addTextHeader('unique-id', $strRandom)
+    //         ->addTextHeader('X-SES-MESSAGE-TAGS', "{$campTempkey}={$campTempId}")
+    //         ->addTextHeader('List-Unsubscribe', '<unsubscribe>');
+    //     });
+
+     
+    //     if($mail){
+    //         $headers = $mail->getOriginalMessage()->getHeaders();
+    //         $sesMessageId = $headers->get('X-SES-Message-ID') ? $headers->get('X-SES-Message-ID')->getBodyAsString() : null;
+    
+    //         $insertData[$dbKey] = $campTempId;
+    //         $insertData['sg_message_id'] = $sesMessageId;
+    //         $insertData['event'] = "processed";
+    //         $insertData['email'] = $customers['email'];
+    //         $insertData['indian_time'] = Carbon::now();
+    //         return DB::table('email_analytics')->insert($insertData);
+    //     }else{
+    //         $strRandom = Str::random();
+    //         $insertData = [
+    //             [
+    //                 $dbKey => $campTempId,
+    //                 'sg_message_id' => $strRandom,
+    //                 'event' => 'processed',
+    //                 'email' => $customers['email'],
+    //                 'indian_time' => Carbon::now(),
+    //             ],
+    //             [
+    //                 $dbKey => $campTempId,
+    //                 'sg_message_id' => $strRandom,
+    //                 'event' => 'failed',
+    //                 'email' => $customers['email'],
+    //                 'indian_time' => Carbon::now(),
+    //             ]
+    //         ];
+    //         return false;
+    //     }
+    // }
+    public static function sendAmazonSes($campaign,$customers){
+        if(is_object($customers)){
+            $customers = (array) $customers;
+        }
+        $textOrHtml = 'html';
+        if(isset($customers['template_id']) && $customers['template_id'] != ''){
+            $campTempId = $customers['template_id'];
+            $campTempkey = 'TEMPLATEID';
+            $dbKey = 'template_id';
+            $type = "TEMPLATE";
+            if($customers['template_id'] == "text"){
+                $textOrHtml = 'raw';
+                $textOrHtmlContent = $customers['content'];
+                $insertData['text_content'] = $textOrHtmlContent;
+            }else{
+                $textOrHtmlContent = $customers['html_content'];
+            }
+        }else{
+            $campTempId = $campaign['campaign_id'];
+            $campTempkey = 'CAMPAIGNID';
+            $dbKey = 'campaign_id';
+            $type = "CAMPAIGN";
+            $textOrHtmlContent = $customers['html_content'];
+        
+        }
+        $strRandom = Str::random(10);
+        $fromEmailAddress = env("MAIL_FROM_ADDRESS");
+        $mail = Mail::$textOrHtml($textOrHtmlContent, function ($message) use ($fromEmailAddress,$campaign,$customers,$campTempkey,$campTempId,$strRandom) {
+            $message->from($fromEmailAddress, $campaign['email_from_name'])
+            ->to($customers['email'], $customers['name'])
+            ->subject($campaign['email_subject'])
+            ->getHeaders()
+            ->addTextHeader('x-ses-configuration-set', 'DICP-SES2SNS-EVENT-CONFIG-SET')
+            ->addTextHeader('unique-id', $strRandom)
+            ->addTextHeader('X-SES-MESSAGE-TAGS', "{$campTempkey}={$campTempId}")
+            ->addTextHeader('List-Unsubscribe', '<unsubscribe>');
+
+            if (!empty($campaign['file']) && !empty($campaign['file_name'])) {
+                $message->attachData($campaign['file'], $campaign['file_name']);
+            }
+        });
+
+
+     
+        if($mail){
+            $headers = $mail->getOriginalMessage()->getHeaders();
+            $sesMessageId = $headers->get('X-SES-Message-ID') ? $headers->get('X-SES-Message-ID')->getBodyAsString() : null;
+    
+            $insertData[$dbKey] = $campTempId;
+            $insertData['sg_message_id'] = $sesMessageId;
+            $insertData['event'] = "processed";
+            $insertData['email'] = $customers['email'];
+            $insertData['indian_time'] = Carbon::now();
+            if($type == "CAMPAIGN"){
+                return DB::table('email_analytics')->insert($insertData);
+            }else{
+                DB::table('email_analytics')->insert($insertData);
+                return ['status'=>true,'message_id'=>$sesMessageId];
+            }
+        }else{
+            $strRandom = Str::random();
+            $insertData = [
+                [
+                    $dbKey => $campTempId,
+                    'sg_message_id' => $strRandom,
+                    'event' => 'processed',
+                    'email' => $customers['email'],
+                    'indian_time' => Carbon::now(),
+                ],
+                [
+                    $dbKey => $campTempId,
+                    'sg_message_id' => $strRandom,
+                    'event' => 'failed',
+                    'email' => $customers['email'],
+                    'indian_time' => Carbon::now(),
+                ]
+            ];
+            return false;
+        }
+    }
+
+    public static function validateEmail($email,$segmentId){
         $checkCount = DB::table('email_dump')->where('segment_id',$segmentId)->where('email',$email)->get()->toArray();
+        $dirtyOrClean = 'clean';
         if(count($checkCount) < 1){
             $curl = curl_init();
             curl_setopt_array($curl, array(
@@ -95,7 +244,7 @@ class EmailController extends BaseController
                 $dumpEmail['email'] = $response['data']['email'];
                 $dumpEmail['status'] = $response['data']['status'];
                 $dumpEmail['reason'] = $response['data']['remarks'];
-                $dumpEmail['segment_id'] = Session::get('segment_id');
+                $dumpEmail['segment_id'] = $segmentId;
                 $dumpEmail['created_at'] = Carbon::now();
                 DB::table('email_dump')->insert($dumpEmail);
                 if($dumpEmail['status'] == "dirty"){
@@ -114,6 +263,10 @@ class EmailController extends BaseController
     public static function sendTelSpielEmail($campaign,$customers){
         if(is_object($customers)){
             $customers = (array) $customers;
+        }
+
+        if(is_object($campaign)){
+            $campaign = (array) $campaign;
         }
 
         if(isset($customers['template_id']) && $customers['template_id'] != ''){
@@ -171,6 +324,10 @@ class EmailController extends BaseController
             ]
         ];
 
+        if(isset($customers['retarget_campaign_id']) && $customers['retarget_campaign_id'] != ''){
+            $emailPayload['email']['messages'][0]['addresses'][0]['user_custom_args']['retarget_campaign_id'] = $customers['retarget_campaign_id'];
+        }
+
 
 
         $curl = curl_init();
@@ -193,12 +350,15 @@ class EmailController extends BaseController
 
         $response = curl_exec($curl);
         $response = json_decode($response,true);
-        echo "<pre>";print_r($response);exit;
+        Log::info($response);
         if(isset($response['statuscode']) && $response['statuscode'] == 200){
             if(isset($response['messageack']['guids']) && $response['messageack']['guids']){
                 $response = $response['messageack']['guids'];
                 $insertData = [];
                 foreach($response as $key => $value){
+                    if(isset($customers['retarget_campaign_id']) && $customers['retarget_campaign_id'] != ''){
+                        $insertData[$key]['retarget_campaign_id'] = $customers['retarget_campaign_id'];
+                    }
                     $insertData[$key][$dbKey] = $campTempId;
                     $insertData[$key]['sg_message_id'] = $value['guid'];
                     $insertData[$key]['event'] = "processed";
@@ -226,6 +386,10 @@ class EmailController extends BaseController
                 'indian_time' => Carbon::now(),
             ]
         ];
+        if(isset($customers['retarget_campaign_id']) && $customers['retarget_campaign_id'] != ''){
+            $insertData[0]['retarget_campaign_id'] = $customers['retarget_campaign_id'];
+            $insertData[1]['retarget_campaign_id'] = $customers['retarget_campaign_id'];
+        }
         return DB::table('email_analytics')->insert($insertData);
     }
 
@@ -235,6 +399,7 @@ class EmailController extends BaseController
     
     public function telSpielEmailWebhook(Request $request){
         $requestData = $request->all();
+        Log::info($requestData);
         EmailWebhook::dispatch($requestData);
         return response()->json(['message' => 'Successfully!']);
         
@@ -281,8 +446,9 @@ class EmailController extends BaseController
     }
 
     public function emailWebhook(Request $request){
-        $requestData = $request->all();
-        EmailWebhook::dispatch($requestData);
+        $requestData = $request->json()->all();
+        Log::info($requestData);
+        AmazonSesEmailWebhook::dispatch($requestData);
         return response()->json(['message' => 'Successfully!']);
         // $insertData = [];
         // $tableName = 'email_analytics';
@@ -332,6 +498,32 @@ class EmailController extends BaseController
     }
 
     public function emailRetargetting(Request $request){
+
+        $startTime = now()->subMinutes(10); // Check only last 5 minutes
+
+        $fiveMinutesAgo = Carbon::now()->subMinutes(40)->format('Y-m-d H:i');
+        $now = Carbon::now()->format('Y-m-d H:i');
+        
+        $campaign = DB::table('retarget_campaign')
+                    ->whereRaw("
+                        JSON_SEARCH(retarget_campaign.retarget, 'one', '%open%', NULL, '$[*].when') IS NOT NULL
+                        AND EXISTS (
+                            SELECT 1 FROM JSON_TABLE(
+                                retarget_campaign.retarget, 
+                                '$[*]' COLUMNS (
+                                    schedule VARCHAR(16) PATH '$.schedule'
+                                )
+                            ) AS jt
+                            WHERE LEFT(jt.schedule, 16) BETWEEN ? AND ?
+                        )
+                    ", [$fiveMinutesAgo, $now])
+                    ->where('is_click_executed', false)
+                    ->orderBy('retarget_campaign.id', 'desc')
+                    ->get()
+                    ->toArray();
+    
+        
+        echo "<pre>";print_r($campaign);exit;
        
         $retargetCampaign = DB::table('retarget_campaign')
         ->leftJoin('campaign', 'campaign.id', '=', 'retarget_campaign.campaign_id')

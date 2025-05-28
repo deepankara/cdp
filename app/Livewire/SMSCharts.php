@@ -49,12 +49,8 @@ class SMSCharts extends ChartWidget
                 [
                     'label' => 'SMS Summary',
                     'data' => array_values($smsArray),
-                    'backgroundColor' => [
-                        'rgba(199, 75, 137, 0.92)', // Processed
-                        //'rgba(46, 81, 196, 0.72)', // Delivered
-                        //'rgba(180, 165, 28, 0.66)', // Open
-                        //'rgb(175, 34, 100)', // Clicked
-                    ],
+              'backgroundColor' => ['rgba(255, 183, 77, 0.75)', // SMS Processed – Cool Gray-Blue
+],
                     'hoverOffset' => 4
                 ],
             ],

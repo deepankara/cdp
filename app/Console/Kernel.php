@@ -15,6 +15,14 @@ class Kernel extends ConsoleKernel
         $schedule->command('campaignsetup:cron')
         ->everyMinute()
         ->withoutOverlapping();
+
+        $schedule->command('retargetcampaignopensetup:cron')
+        ->everyMinute()
+        ->withoutOverlapping();
+
+        $schedule->command('retargetcampaignclicksetup:cron')
+        ->everyMinute()
+        ->withoutOverlapping();
     }
 
     /**

@@ -47,7 +47,7 @@ class RetargetCampaignResource extends Resource
                     ->default(null),
 
                 Forms\Components\Select::make('campaign_id')
-                    ->options(Campaign::all()->pluck('name','id'))->native(false)
+                    ->options(Campaign::where('channel',"Email")->pluck('name','id'))->native(false)
                     ->live(onBlur: true)
                     ->disabledOn('edit')
                     ->afterStateUpdated(function (Get $get, ?string $state) {

@@ -5,10 +5,12 @@ namespace App\Filament\Widgets;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 
 class EmailAnalyticsBar extends ChartWidget
 {
+    use HasWidgetShield; 
     protected static ?string $heading = 'Chart';
     protected static bool $isLazy = false;
     protected static ?string $pollingInterval = null;

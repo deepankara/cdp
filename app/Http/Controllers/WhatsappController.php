@@ -23,11 +23,10 @@ class WhatsappController extends BaseController
 {
     public function whatsappWebook(Request $request){
         $requestData = $request->all();
+        // echo $requestData['hub_challenge'];exit;
+        Log::info(json_encode($requestData));    
         WhatsappWebhook::dispatch($requestData);
         return response()->json(['message' => 'Successfully!']);
-        // Log::info(json_encode($requestData));exit;
-        // echo $requestData['hub_challenge'];exit;
-        // Log::info($requestData);exit;
         // $statusData = $requestData['entry'][0]['changes'][0]['value']['statuses'][0];
         // $whatsapp = [];
         // if($statusData['status'] == 'failed'){
@@ -59,27 +58,38 @@ class WhatsappController extends BaseController
     }
 
     public function sendWa(Request $request){
-        $campaign = DB::table('campaign')->where('channel',"Whatsapp")->get()->toArray();
+        $campaign = DB::table('campaign')->where('channel',"Whatsapp")->where('campaign_executed',false)->get()->toArray();
         $campaign = (array) current($campaign);
 
-        $customers = DB::table('customers')->where('segment_id',$campaign['include_segment_id'])
-        // ->where('email',"hemant.dhivar@auxilo.com")
-        ;
+        $customers = DB::table('customers')
+        ->where('segment_id', $campaign['include_segment_id'])
+     ;
+    
 
         $whatsappVariables = json_decode($campaign['wa_variables'],true);
 
         if(isset($campaign['rule_id']) && $campaign['rule_id'] != '') {
             $customers = RulesController::rulesSync($campaign['rule_id'],$customers);
-        }else{
-            $customers = $customers->get()->toArray();
         }
+        
         
         $template = DB::table('whatsapp_templates')->where("id",$campaign['whatsapp_template'])->get()->toArray();
         $template = (array) current($template);
 
 
-        
+        if($template['category'] == "MARKETING"){
+            $customers = $customers->leftJoin('whatsapp_unsubscribe', function ($join) {
+                            $join->on(DB::raw('RIGHT(customers.contact_no, 10)'), '=', DB::raw('RIGHT(whatsapp_unsubscribe.number, 10)'));
+                        })
+                        ->whereNull('whatsapp_unsubscribe.number');
+        }
+        $customers = $customers->get()->toArray();
 
+        echo "<pre>";print_r($customers);exit;
+
+
+
+        
         foreach ($customers as $customerKey => $customerValue) {
             $component = [];
             $convertArray = (array) $customerValue;
@@ -95,7 +105,21 @@ class WhatsappController extends BaseController
                 if($template['header_type'] == "VIDEO"){
                     $header['parameters'][0] = [
                         "type" => "video",
-                        "video" => ['id'=>2775523425989051]
+                        "video" => ['link'=>$attributes[$whatsappVariables[0]['value']]]
+                    ];
+                }
+
+                if($template['header_type'] == "IMAGE"){
+                    $header['parameters'][0] = [
+                        "type" => "image",
+                        "image" => ['link'=>$attributes[$whatsappVariables[0]['value']]]
+                    ];
+                }
+
+                if($template['header_type'] == "DOCUMENT"){
+                    $header['parameters'][0] = [
+                        "type" => "document",
+                        "document" => ['link'=>$attributes[$whatsappVariables[0]['value']]]
                     ];
                 }
 
@@ -125,43 +149,51 @@ class WhatsappController extends BaseController
             }
 
 
-            // if(isset($template['buttons']) && $template['buttons'] != ''){
-            //     $buttonJson = json_decode($template['buttons'],true);
-            //     foreach($buttonJson as $key => $value){
-            //         if($value['option'] == "COPY_CODE"){
-            //             $button = [];
-            //             $button['type'] = "button";
-            //             $button['sub_type'] = strtolower($value['option']);
-            //             $button['index'] = $key;
-            //             // $button['parameters'][] = [];
-            //             $button['parameters']['type'] = "coupon_code";
-            //             $option = $value['option'];
-            //             $result = Arr::first($whatsappVariables, function ($item) use ($option) {
-            //                 return $item['name'] === $option;
-            //             });
-            //             $button['parameters']['coupon_code'] = $attributes[$result['value']];
-            //             $button['parameters'] = array($button['parameters']);
-            //             $component[] = $button;
-            //         }
+            if(isset($template['buttons']) && $template['buttons'] != ''){
+                $buttonJson = json_decode($template['buttons'],true);
+                foreach($buttonJson as $key => $value){
+                    if($value['option'] == "COPY_CODE"){
+                        $button = [];
+                        $button['type'] = "button";
+                        $button['sub_type'] = strtolower($value['option']);
+                        $button['index'] = $key;
+                        // $button['parameters'][] = [];
+                        $button['parameters']['type'] = "coupon_code";
+                        $option = $value['option'];
+                        $result = Arr::first($whatsappVariables, function ($item) use ($option) {
+                            return $item['name'] === $option;
+                        });
+                        $button['parameters']['coupon_code'] = $attributes[$result['value']];
+                        $button['parameters'] = array($button['parameters']);
+                        $component[] = $button;
+                    }
 
-            //         if($value['option'] == "URL" ){
-            //             $button = [];
-            //             $button['type'] = "button";
-            //             $button['sub_type'] = strtolower($value['option']);
-            //             $button['index'] = $key;
-            //             // $button['parameters'][] = [];
-            //             $button['parameters']['type'] = "text";
-            //             $option = $value['option'];
+                    if($value['option'] == "URL" && $value['url_type'] == 'dynamic'){
+                        if(isset($value['dynamic_url']) && $value['dynamic_url'] != ''){
+                            if(!str_contains(($value['dynamic_url']),"{{1}}")){
+                                continue;
+                            }
+                        }else{
+                            continue;
+                        }
+                        $button = [];
+                        $button['type'] = "button";
+                        $button['sub_type'] = strtolower($value['option']);
+                        $button['index'] = $key;
+                        // $button['parameters'][] = [];
+                        $button['parameters']['type'] = "text";
+                        $option = $value['option'];
 
-            //             $result = Arr::first($whatsappVariables, function ($item) use ($option) {
-            //                 return $item['name'] === $option;
-            //             });
-            //             $button['parameters']['text'] =  $attributes[$result['value']];
-            //             $button['parameters'] = array($button['parameters']);
-            //             $component[] = $button;
-            //         }
-            //     }
-            // }
+                        $result = Arr::first($whatsappVariables, function ($item) use ($option) {
+                            return $item['name'] === $option;
+                        });
+                        $button['parameters']['text'] =  $attributes[$result['value']];
+                        $button['parameters'] = array($button['parameters']);
+                        $component[] = $button;
+                    }
+                }
+            }
+            echo "<pre>";print_r($component);
             $whatsapp = [];
             $whatsapp['messaging_product'] = "whatsapp";
             $whatsapp['to'] = $attributes['contact_no'];
@@ -175,7 +207,7 @@ class WhatsappController extends BaseController
 
             $curl = curl_init();
             curl_setopt_array($curl, array(
-                CURLOPT_URL => 'https://graph.facebook.com/v21.0/539948642537047/messages',
+                CURLOPT_URL => 'https://graph.facebook.com/v21.0/'.env("WHATSAPP_PHONE_ID").'/messages',
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_ENCODING => '',
                 CURLOPT_MAXREDIRS => 10,
@@ -194,7 +226,9 @@ class WhatsappController extends BaseController
             $response = curl_exec($curl);
             curl_close($curl);
             $response = json_decode($response,true);
-            echo "<pre>";print_r($response);
+            echo "<pre>";print_r($response);exit;
+
+
             if (isset($response['messages'][0]['id']) && $response['messages'][0]['id'] != '') {
                 $statuses = ["read", "sent", "delivered", "failed"];
                 $whatsappData = [];
@@ -210,5 +244,6 @@ class WhatsappController extends BaseController
                 DB::table("whatsapp_analytics")->insert($whatsappData);
             }
         }
+        exit;
     }
 }
